@@ -2,7 +2,7 @@
 $host = 'localhost';
 $db   = 'cs4116_marketplace';
 $user = 'root';
-$pass = '';
+$pass = '';  // Empty password for XAMPP default
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
@@ -15,6 +15,6 @@ $options = [
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (\PDOException $e) {
-    throw new \PDOException($e->getMessage(), (int)$e->getCode());
+    die("Database connection failed: " . $e->getMessage());
 }
 ?> 
