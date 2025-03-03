@@ -14,8 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Both fields are required';
     } elseif ($password !== $confirm_password) {
         $error = 'Passwords do not match';
-    } elseif (strlen($password) < 8) {
-        $error = 'Password must be at least 8 characters';
+    } elseif (!isValidPassword($password)) {
+        $error = 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character';
     } else {
         try {
             // Verify token
@@ -50,16 +50,20 @@ include __DIR__ . '/../includes/header.php';
                     <h2 class="mb-0">Reset Password</h2>
                 </div>
                 <div class="card-body">
-                    <?php if ($error): ?>
-                        <div class="alert alert-danger"><?= $error ?></div>
+                    <?php if (isset($error)): ?>
+                        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
                     <?php endif; ?>
                     <?php if ($success): ?>
                         <div class="alert alert-success"><?= $success ?></div>
                     <?php else: ?>
                         <form action="reset-password.php?token=<?= $token ?>" method="post">
                             <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$">
+                            </div>
+                            <div class="mb-3">
                                 <label for="password" class="form-label">New Password</label>
-                                <input type="password" class="form-control" id="password" name="password" required>
+                                <input type="password" class="form-control" id="password" name="password" required minlength="8" pattern="^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[\W_]).{8,}$">
                             </div>
                             <div class="mb-3">
                                 <label for="confirm_password" class="form-label">Confirm New Password</label>

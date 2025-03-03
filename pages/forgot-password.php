@@ -8,6 +8,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (empty($email)) {
         $message = 'Please enter your email address';
+    } elseif (!isValidEmail($email)) {
+        $message = 'Please enter a valid email address';
     } else {
         try {
             // Check if email exists

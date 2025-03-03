@@ -11,13 +11,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $confirm_password = $_POST['confirm_password'];
     $user_type = $_POST['user_type']; // 'regular' or 'business'
 
-    // Validation
+    // Add validation functions
+    function isValidEmail($email) {
+        return filter_var($email, FILTER_VALIDATE_EMAIL);
+    }
+
+    function isValidPassword($password) {
+        return preg_match('/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[\W_]).{8,}$/', $password);
+    }
+
+    // Update validation block
     if (empty($username) || empty($email) || empty($password)) {
         $error = 'All fields are required';
+    } elseif (!isValidEmail($email)) {
+        $error = 'Please enter a valid email address';
     } elseif ($password !== $confirm_password) {
         $error = 'Passwords do not match';
-    } elseif (strlen($password) < 8) {
-        $error = 'Password must be at least 8 characters';
+    } elseif (!isValidPassword($password)) {
+        $error = 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character';
     } else {
         try {
             // Check if email exists

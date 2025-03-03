@@ -4,17 +4,21 @@ require __DIR__ . '/../includes/db_connection.php';
 require __DIR__ . '/../includes/auth_functions.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = $_POST['email'];
+    $email = trim($_POST['email']);
     $password = $_POST['password'];
 
-    $user = authenticateUser($pdo, $email, $password);
-    
-    if ($user) {
-        startUserSession($user);
-        header('Location: dashboard.php');
-        exit;
+    if (!isValidEmail($email)) {
+        $error = 'Please enter a valid email address';
     } else {
-        $error = "Invalid email or password";
+        $user = authenticateUser($pdo, $email, $password);
+        
+        if ($user) {
+            startUserSession($user);
+            header('Location: dashboard.php');
+            exit;
+        } else {
+            $error = "Invalid email or password";
+        }
     }
 }
 
