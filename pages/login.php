@@ -55,19 +55,10 @@ include __DIR__ . '/../includes/header.php';
                             <label class="form-check-label" for="rememberMe">Remember me</label>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
-                        <div class="text-center">
-                            <p class="mb-1">Or login with:</p>
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-outline-primary">
-                                    <i class="bi bi-google"></i> Google
-                                </button>
-                                <button type="button" class="btn btn-outline-primary">
-                                    <i class="bi bi-facebook"></i> Facebook
-                                </button>
-                            </div>
-                        </div>
                         <hr>
-                        <p class="text-center">Don't have an account? <a href="register.php" class="text-decoration-none">Register here</a></p>
+                        <div class="text-center">
+                            <p class="mt-3">Don't have an account? <a href="register.php" class="text-decoration-none">Register here</a></p>
+                        </div>
                     </form>
                 </div>
             </div>

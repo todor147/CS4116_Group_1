@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // If business, insert into Coaches table
                 if ($user_type === 'business') {
                     $user_id = $pdo->lastInsertId();
-                    $stmt = $pdo->prepare("INSERT INTO Coaches (user_id) VALUES (?)");
+                    $stmt = $pdo->prepare("INSERT INTO Coaches (user_id, expertise, availability, hourly_rate, rating) VALUES (?, '', '', 0, 0)");
                     $stmt->execute([$user_id]);
                 }
 
