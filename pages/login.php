@@ -23,23 +23,54 @@ include __DIR__ . '/../includes/header.php';
 
 <div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-6">
-            <h2 class="mb-4">Login</h2>
-            <?php if (isset($error)): ?>
-                <div class="alert alert-danger"><?= $error ?></div>
-            <?php endif; ?>
-            <form action="login.php" method="post">
-                <div class="mb-3">
-                    <label for="email" class="form-label">Email</label>
-                    <input type="email" class="form-control" id="email" name="email" required>
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">Login to EduCoach</h2>
                 </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="password" name="password" required>
+                <div class="card-body">
+                    <?php if (isset($error)): ?>
+                        <div class="alert alert-danger"><?= $error ?></div>
+                    <?php endif; ?>
+                    <form action="login.php" method="post">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <small class="form-text text-muted">
+                                <a href="forgot-password.php" class="text-decoration-none">Forgot password?</a>
+                            </small>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="rememberMe">
+                            <label class="form-check-label" for="rememberMe">Remember me</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
+                        <div class="text-center">
+                            <p class="mb-1">Or login with:</p>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-primary">
+                                    <i class="bi bi-google"></i> Google
+                                </button>
+                                <button type="button" class="btn btn-outline-primary">
+                                    <i class="bi bi-facebook"></i> Facebook
+                                </button>
+                            </div>
+                        </div>
+                        <hr>
+                        <p class="text-center">Don't have an account? <a href="register.php" class="text-decoration-none">Register here</a></p>
+                    </form>
                 </div>
-                <button type="submit" class="btn btn-primary">Login</button>
-                <p class="mt-3">Don't have an account? <a href="register.php">Register here</a></p>
-            </form>
+            </div>
         </div>
     </div>
 </div>
