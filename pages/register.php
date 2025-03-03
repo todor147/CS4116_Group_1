@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/../includes/db_connection.php';
 require __DIR__ . '/../includes/auth_functions.php';
+require __DIR__ . '/../includes/validation_functions.php';
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -10,15 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
     $user_type = $_POST['user_type']; // 'regular' or 'business'
-
-    // Add validation functions
-    function isValidEmail($email) {
-        return filter_var($email, FILTER_VALIDATE_EMAIL);
-    }
-
-    function isValidPassword($password) {
-        return preg_match('/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[\W_]).{8,}$/', $password);
-    }
 
     // Update validation block
     if (empty($username) || empty($email) || empty($password)) {

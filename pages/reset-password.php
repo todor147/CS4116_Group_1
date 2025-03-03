@@ -1,6 +1,7 @@
 <?php
 session_start();
 require __DIR__ . '/../includes/db_connection.php';
+require __DIR__ . '/../includes/validation_functions.php';
 
 $error = '';
 $success = '';
