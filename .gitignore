@@ -12,6 +12,7 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+.cursor/
 
 # Ignore node modules
 node_modules/
@@ -38,9 +39,9 @@ composer.lock
 /logs/
 *.log
 
-# Ignore database files
-*.sql
-*.sqlite
+// # Ignore database files
+// *.sql
+// *.sqlite
 
 # Ignore uploaded files
 /uploads/
