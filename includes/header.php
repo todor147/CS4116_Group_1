@@ -42,13 +42,8 @@
     </nav>
 
     <?php
-    // Ensure session variables match the schema
-    if (isset($_SESSION['logged_in'])) {
-        // Use user_id from the database
-        $_SESSION['user_id'] = $user['user_id'];
-        $_SESSION['username'] = $user['username'];
-        $_SESSION['email'] = $user['email'];
-    }
+    // Remove the problematic code that assumes $user is defined
+    // Session variables are already set in auth_functions.php when the user logs in
     ?>
 </body>
 </html> 
