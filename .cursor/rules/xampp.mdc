@@ -1,6 +1,0 @@
----
-description: mysql path
-globs: 
-alwaysApply: true
----
-Make sure each time you give me a command to put in the terminal that starts with "mysql" that it starts with "C:\xampp\mysql\bin\mysql.exe" instead
