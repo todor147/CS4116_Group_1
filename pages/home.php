@@ -9,7 +9,7 @@
                 <div class="col-md-8">
                     <h3>Hello, <?= htmlspecialchars($_SESSION['username']) ?>!</h3>
                     
-                    <?php if (isset($_SESSION['is_coach'])): ?>
+                    <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'business'): ?>
                         <div class="card mt-4">
                             <div class="card-body">
                                 <h5 class="card-title">Coach Dashboard</h5>

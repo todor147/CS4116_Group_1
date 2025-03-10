@@ -31,13 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 // Insert new user
                 $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("INSERT INTO Users (username, email, password_hash) VALUES (?, ?, ?)");
-                $stmt->execute([$username, $email, $password_hash]);
+                $stmt = $pdo->prepare("INSERT INTO Users (username, email, password_hash, user_type) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$username, $email, $password_hash, $user_type]);
                 
                 // If business, insert into Coaches table
                 if ($user_type === 'business') {
                     $user_id = $pdo->lastInsertId();
-                    $stmt = $pdo->prepare("INSERT INTO Coaches (user_id, expertise, availability, hourly_rate, rating) VALUES (?, '', '', 0, 0)");
+                    $stmt = $pdo->prepare("INSERT INTO Coaches (user_id, expertise, availability, rating) VALUES (?, '', '', 0)");
                     $stmt->execute([$user_id]);
                 }
 

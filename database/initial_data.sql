@@ -1,5 +1,3 @@
-USE cs4116_marketplace;
-
 -- Sample data for EduCoach platform
 -- Insert sample users (password is 'Password123!')
 INSERT INTO Users (username, email, password_hash, user_type, bio) VALUES
