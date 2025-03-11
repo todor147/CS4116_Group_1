@@ -5,7 +5,7 @@ require 'includes/db_connection.php';
 // Basic routing
 $page = $_GET['page'] ?? 'home';
 
-$allowed_pages = ['home', 'login', 'register', 'dashboard'];
+$allowed_pages = ['home', 'login', 'register', 'dashboard', 'review', 'sessions'];
 if (!in_array($page, $allowed_pages)) {
     $page = '404';
 }
