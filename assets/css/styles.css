@@ -1,12 +1,63 @@
+/* Main Styles for EduCoach */
+
+body {
+    font-family: 'Arial', sans-serif;
+    color: #333;
+    line-height: 1.6;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 8px;
+    object-fit: cover;
+}
+
+.username {
+    font-weight: 500;
+}
+
+/* Custom styling for profile pages */
+.profile-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Footer styling */
+.footer {
+    background-color: #f8f9fa;
+    padding: 3rem 0;
+    margin-top: 3rem;
+}
+
+/* Card styling */
+.card {
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+/* Button styling */
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
 .container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
-}
-
-.card {
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .btn {

@@ -102,11 +102,18 @@ include __DIR__ . '/../includes/header.php';
                 <?php echo ($is_coach) ? 'Coach Dashboard' : 'Learner Dashboard'; ?>
             </h1>
             
+            <?php if (isset($_GET['welcome']) && $_GET['welcome'] == 1): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <strong>Welcome to EduCoach!</strong> Your account has been created successfully and you're now logged in.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php endif; ?>
+            
             <?php if (isset($error)): ?>
                 <div class="alert alert-danger"><?= $error ?></div>
             <?php endif; ?>
+            </div>
         </div>
-    </div>
 
     <div class="row">
         <div class="col-md-4">
@@ -116,9 +123,31 @@ include __DIR__ . '/../includes/header.php';
                 </div>
                 <div class="card-body">
                     <div class="text-center mb-3">
-                        <?php $profileImage = $_SESSION['profile_image'] ?? 'default.jpg'; ?>
-                        <img src="/assets/images/profiles/<?= $profileImage ?>" alt="Profile" class="rounded-circle img-thumbnail" style="width: 100px; height: 100px;">
-                    </div>
+                        <?php 
+                        // Improved profile image handling with debug output
+                        $profile_image = isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] : 'default.jpg';
+                        $image_path = "../assets/images/profiles/{$profile_image}";
+                        $default_image = "../assets/images/profiles/default.jpg";
+                        
+                        // Check if file exists and is readable
+                        $full_image_path = __DIR__ . "/../assets/images/profiles/{$profile_image}";
+                        $full_default_path = __DIR__ . "/../assets/images/profiles/default.jpg";
+                        
+                        // Add debugging information (only visible in HTML source)
+                        echo "<!-- Debug: profile_image='{$profile_image}', full_path='{$full_image_path}', exists=" . (file_exists($full_image_path) ? 'true' : 'false') . " -->";
+                        
+                        // If user image doesn't exist or fallback doesn't exist, use an external default
+                        if (file_exists($full_image_path) && is_readable($full_image_path)) {
+                            $display_image = $image_path;
+                        } elseif (file_exists($full_default_path) && is_readable($full_default_path)) {
+                            $display_image = $default_image;
+                        } else {
+                            // Fallback to a reliable external default avatar
+                            $display_image = "https://ui-avatars.com/api/?name=" . urlencode($_SESSION['username']) . "&background=random&size=100";
+                        }
+                        ?>
+                        <img src="<?= $display_image ?>" alt="Profile" class="rounded-circle img-thumbnail" style="width: 100px; height: 100px; object-fit: cover;">
+                                </div>
                     <h5 class="text-center"><?= htmlspecialchars($_SESSION['username']) ?></h5>
                     <p class="text-center text-muted"><?= htmlspecialchars($_SESSION['email']) ?></p>
                     
@@ -127,7 +156,7 @@ include __DIR__ . '/../includes/header.php';
                         <div class="mb-2">
                             <strong>Expertise:</strong>
                             <p><?= htmlspecialchars($coach['expertise'] ?: 'Not specified') ?></p>
-                        </div>
+                            </div>
                         <div class="mb-2">
                             <strong>Availability:</strong>
                             <p><?= htmlspecialchars($coach['availability'] ?: 'Not specified') ?></p>
@@ -140,11 +169,11 @@ include __DIR__ . '/../includes/header.php';
                     
                     <div class="d-grid gap-2">
                         <a href="profile.php" class="btn btn-outline-primary">Edit Profile</a>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
-        
+
         <div class="col-md-8">
             <?php if ($is_coach): ?>
                 <!-- Coach-specific content -->
@@ -231,11 +260,11 @@ include __DIR__ . '/../includes/header.php';
                         <p>No inquiries found.</p>
                         <?php if (!$is_coach): ?>
                             <a href="search.php" class="btn btn-primary">Find a Coach</a>
-                        <?php endif; ?>
                     <?php endif; ?>
-                </div>
-            </div>
-            
+                    <?php endif; ?>
+                        </div>
+                    </div>
+
             <!-- Upcoming Sessions - Both user types -->
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
