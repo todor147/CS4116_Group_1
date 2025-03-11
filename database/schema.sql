@@ -27,7 +27,8 @@ CREATE TABLE Users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_banned BOOLEAN DEFAULT FALSE,
     reset_token VARCHAR(64) DEFAULT NULL,
-    reset_expires DATETIME DEFAULT NULL
+    reset_expires DATETIME DEFAULT NULL,
+    last_login DATETIME DEFAULT NULL
 );
 
 -- Create Coaches table

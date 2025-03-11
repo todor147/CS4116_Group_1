@@ -1,5 +1,12 @@
 <?php
 session_start();
+
+// Redirect if already logged in
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
+    header('Location: dashboard.php');
+    exit;
+}
+
 require __DIR__ . '/../includes/db_connection.php';
 require __DIR__ . '/../includes/auth_functions.php';
 require __DIR__ . '/../includes/validation_functions.php';
@@ -34,14 +41,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("INSERT INTO Users (username, email, password_hash, user_type) VALUES (?, ?, ?, ?)");
                 $stmt->execute([$username, $email, $password_hash, $user_type]);
                 
+                // Get the newly created user's ID
+                $user_id = $pdo->lastInsertId();
+                
                 // If business, insert into Coaches table
                 if ($user_type === 'business') {
-                    $user_id = $pdo->lastInsertId();
                     $stmt = $pdo->prepare("INSERT INTO Coaches (user_id, expertise, availability, rating) VALUES (?, '', '', 0)");
                     $stmt->execute([$user_id]);
                 }
 
-                header('Location: login.php');
+                // Fetch the newly created user for session data
+                $stmt = $pdo->prepare("SELECT * FROM Users WHERE user_id = ?");
+                $stmt->execute([$user_id]);
+                $newUser = $stmt->fetch();
+                
+                // Auto-login: Start user session
+                startUserSession($newUser);
+                
+                // Update last login time
+                updateLastLogin($pdo, $user_id);
+                
+                // Redirect to dashboard instead of login page
+                header('Location: dashboard.php?welcome=1');
                 exit;
             }
         } catch (PDOException $e) {

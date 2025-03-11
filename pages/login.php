@@ -1,5 +1,12 @@
 <?php
 session_start();
+
+// Redirect if already logged in
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
+    header('Location: dashboard.php');
+    exit;
+}
+
 require __DIR__ . '/../includes/db_connection.php';
 require __DIR__ . '/../includes/auth_functions.php';
 require __DIR__ . '/../includes/validation_functions.php';
