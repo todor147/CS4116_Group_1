@@ -137,6 +137,15 @@ include __DIR__ . '/../includes/header.php';
                                 </div>
                             </div>
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Service Analytics</h5>
+                                    <p class="card-text">Track performance and metrics for your service tiers and pricing.</p>
+                                    <a href="service-analytics.php" class="btn btn-primary">View Analytics</a>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
