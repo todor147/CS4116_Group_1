@@ -13,12 +13,118 @@ INSERT INTO Users (username, email, password_hash, user_type, bio) VALUES
 ('student4', 'student4@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'regular', 'Beginner programmer seeking coding tutorials.');
 
 -- Insert coaches
-INSERT INTO Coaches (user_id, expertise, availability, rating) VALUES
-(2, 'Mathematics, Algebra, Calculus', 'Weekdays 4pm-8pm, Weekends 10am-4pm', 4.8),
-(3, 'Spanish, French, ESL', 'Monday-Friday 9am-5pm', 4.5),
-(4, 'Physics, Chemistry, Biology', 'Tuesdays and Thursdays 6pm-9pm, Saturdays 1pm-6pm', 4.9),
-(5, 'Painting, Drawing, Art History', 'Weekends only, 11am-7pm', 4.2),
-(6, 'JavaScript, Python, Web Development', 'Flexible hours, please inquire', 4.7);
+INSERT INTO Coaches (user_id, headline, about_me, experience, hourly_rate, video_url, rating) VALUES
+(2, 'Expert Math Tutor & Educator', 'I am a passionate math educator with extensive experience teaching students of all levels. I specialize in making complex concepts easy to understand and building strong mathematical foundations.', '10+ years', 45.00, 'https://www.youtube.com/embed/dQw4w9WgXcQ', 4.8),
+(3, 'Professional Language Instructor', 'Certified language teacher with expertise in Spanish and French. I focus on conversational fluency, proper grammar, and cultural understanding to help you truly master a new language.', '8 years', 40.00, 'https://www.youtube.com/embed/dQw4w9WgXcQ', 4.5),
+(4, 'PhD Science Educator', 'Physics and Chemistry expert with a doctorate in Physical Sciences. I break down complex scientific concepts into understandable pieces, focusing on both theory and practical applications.', '12 years', 55.00, 'https://www.youtube.com/embed/dQw4w9WgXcQ', 4.9),
+(5, 'Professional Artist & Teacher', 'Classically trained artist with experience in various mediums including oil painting, watercolor, and digital art. I help students develop their artistic eye and technical skills.', '7 years', 35.00, 'https://www.youtube.com/embed/dQw4w9WgXcQ', 4.2),
+(6, 'Software Engineer & Coding Coach', 'Full-stack developer with years of industry experience at top tech companies. I teach practical programming skills that will prepare you for real-world development work.', '9 years', 60.00, 'https://www.youtube.com/embed/dQw4w9WgXcQ', 4.7);
+
+-- Insert expertise categories
+INSERT INTO Expertise_Categories (category_name, description) VALUES
+('Mathematics', 'All branches of mathematics including algebra, calculus, geometry, and statistics'),
+('Languages', 'Foreign language instruction and linguistics'),
+('Sciences', 'Natural sciences including physics, chemistry, biology, and environmental science'),
+('Arts', 'Visual arts, music, performing arts, and art history'),
+('Technology', 'Computer science, programming, and technology related skills'),
+('Business', 'Business strategy, marketing, finance, and entrepreneurship'),
+('Humanities', 'History, philosophy, literature, and other humanities subjects'),
+('Test Preparation', 'Preparation for standardized tests and certifications');
+
+-- Insert skills
+INSERT INTO Skills (category_id, skill_name, description) VALUES
+-- Mathematics Skills
+(1, 'Algebra', 'Equations, functions, and algebraic structures'),
+(1, 'Calculus', 'Differential and integral calculus'),
+(1, 'Geometry', 'Euclidean geometry, trigonometry, and spatial reasoning'),
+(1, 'Statistics', 'Data analysis, probability, and statistical methods'),
+-- Languages Skills
+(2, 'Spanish', 'Spanish language instruction from beginner to advanced'),
+(2, 'French', 'French language instruction from beginner to advanced'),
+(2, 'English', 'English language instruction for non-native speakers'),
+(2, 'Chinese', 'Mandarin and Cantonese instruction'),
+-- Sciences Skills
+(3, 'Physics', 'Classical mechanics, electromagnetism, quantum physics'),
+(3, 'Chemistry', 'Organic and inorganic chemistry, biochemistry'),
+(3, 'Biology', 'Molecular biology, genetics, ecology'),
+(3, 'Astronomy', 'Stellar astronomy, cosmology, space science'),
+-- Arts Skills
+(4, 'Painting', 'Oil painting, watercolor, acrylic techniques'),
+(4, 'Drawing', 'Sketching, figure drawing, perspective'),
+(4, 'Digital Art', 'Digital illustration, graphic design'),
+(4, 'Photography', 'Camera techniques, composition, editing'),
+-- Technology Skills
+(5, 'JavaScript', 'Front-end web development with JavaScript'),
+(5, 'Python', 'Python programming for web, data science, and automation'),
+(5, 'Java', 'Object-oriented programming with Java'),
+(5, 'Web Development', 'Full-stack web development'),
+-- Business Skills
+(6, 'Marketing', 'Digital marketing, SEO, and social media strategy'),
+(6, 'Finance', 'Financial planning, accounting, and investment'),
+(6, 'Entrepreneurship', 'Business strategy and startup guidance'),
+-- Humanities Skills
+(7, 'History', 'World history, historical analysis'),
+(7, 'Philosophy', 'Philosophical concepts and critical thinking'),
+(7, 'Literature', 'Literary analysis and creative writing'),
+-- Test Preparation Skills
+(8, 'SAT Prep', 'Preparation for the SAT college entrance exam'),
+(8, 'GMAT Prep', 'Preparation for the GMAT business school exam'),
+(8, 'TOEFL Prep', 'Preparation for the TOEFL English proficiency test');
+
+-- Associate coaches with skills
+INSERT INTO Coach_Skills (coach_id, skill_id, proficiency_level) VALUES
+-- John (Math)
+(1, 1, 5), -- Algebra (Expert)
+(1, 2, 5), -- Calculus (Expert)
+(1, 3, 4), -- Geometry (Advanced)
+(1, 4, 4), -- Statistics (Advanced)
+-- Sara (Languages)
+(2, 5, 5), -- Spanish (Expert)
+(2, 6, 5), -- French (Expert)
+(2, 7, 4), -- English (Advanced)
+-- Mike (Sciences)
+(3, 9, 5), -- Physics (Expert)
+(3, 10, 5), -- Chemistry (Expert)
+(3, 11, 3), -- Biology (Intermediate)
+(3, 12, 4), -- Astronomy (Advanced)
+-- Emily (Arts)
+(4, 13, 5), -- Painting (Expert)
+(4, 14, 5), -- Drawing (Expert)
+(4, 15, 3), -- Digital Art (Intermediate)
+-- David (Technology)
+(5, 17, 5), -- JavaScript (Expert)
+(5, 18, 4), -- Python (Advanced)
+(5, 19, 3), -- Java (Intermediate)
+(5, 20, 5); -- Web Development (Expert)
+
+-- Add coach availability
+INSERT INTO Coach_Availability (coach_id, day_of_week, start_time, end_time) VALUES
+-- John's availability
+(1, 'Monday', '16:00:00', '20:00:00'),
+(1, 'Tuesday', '16:00:00', '20:00:00'),
+(1, 'Wednesday', '16:00:00', '20:00:00'),
+(1, 'Thursday', '16:00:00', '20:00:00'),
+(1, 'Friday', '16:00:00', '20:00:00'),
+(1, 'Saturday', '10:00:00', '16:00:00'),
+(1, 'Sunday', '10:00:00', '16:00:00'),
+-- Sara's availability
+(2, 'Monday', '09:00:00', '17:00:00'),
+(2, 'Tuesday', '09:00:00', '17:00:00'),
+(2, 'Wednesday', '09:00:00', '17:00:00'),
+(2, 'Thursday', '09:00:00', '17:00:00'),
+(2, 'Friday', '09:00:00', '17:00:00'),
+-- Mike's availability
+(3, 'Tuesday', '18:00:00', '21:00:00'),
+(3, 'Thursday', '18:00:00', '21:00:00'),
+(3, 'Saturday', '13:00:00', '18:00:00'),
+-- Emily's availability
+(4, 'Saturday', '11:00:00', '19:00:00'),
+(4, 'Sunday', '11:00:00', '19:00:00'),
+-- David's availability
+(5, 'Monday', '18:00:00', '22:00:00'),
+(5, 'Wednesday', '18:00:00', '22:00:00'),
+(5, 'Friday', '18:00:00', '22:00:00'),
+(5, 'Saturday', '14:00:00', '20:00:00');
 
 -- Insert categories
 INSERT INTO Categories (name, description) VALUES
