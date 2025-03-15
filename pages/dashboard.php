@@ -25,40 +25,48 @@ try {
         ");
         $stmt->execute([$user_id]);
         $coach = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Check if coach profile exists
+        if ($coach) {
+            // Get coach's service tiers
+            $stmt = $pdo->prepare("
+                SELECT * FROM ServiceTiers 
+                WHERE coach_id = ?
+            ");
+            $stmt->execute([$coach['coach_id']]);
+            $serviceTiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Get coach's service tiers
-        $stmt = $pdo->prepare("
-            SELECT * FROM ServiceTiers 
-            WHERE coach_id = ?
-        ");
-        $stmt->execute([$coach['coach_id']]);
-        $serviceTiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Get recent inquiries
+            $stmt = $pdo->prepare("
+                SELECT si.*, u.username as learner_name, st.name as tier_name
+                FROM ServiceInquiries si
+                JOIN Users u ON si.user_id = u.user_id
+                JOIN ServiceTiers st ON si.tier_id = st.tier_id
+                WHERE si.coach_id = ?
+                ORDER BY si.created_at DESC
+                LIMIT 5
+            ");
+            $stmt->execute([$coach['coach_id']]);
+            $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Get recent inquiries
-        $stmt = $pdo->prepare("
-            SELECT si.*, u.username as learner_name, st.name as tier_name
-            FROM ServiceInquiries si
-            JOIN Users u ON si.user_id = u.user_id
-            JOIN ServiceTiers st ON si.tier_id = st.tier_id
-            WHERE si.coach_id = ?
-            ORDER BY si.created_at DESC
-            LIMIT 5
-        ");
-        $stmt->execute([$coach['coach_id']]);
-        $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Get upcoming sessions
-        $stmt = $pdo->prepare("
-            SELECT s.*, u.username as learner_name, st.name as tier_name
-            FROM Sessions s
-            JOIN Users u ON s.learner_id = u.user_id
-            JOIN ServiceTiers st ON s.tier_id = st.tier_id
-            WHERE s.coach_id = ? AND s.status = 'scheduled'
-            ORDER BY s.scheduled_time ASC
-            LIMIT 5
-        ");
-        $stmt->execute([$coach['coach_id']]);
-        $upcomingSessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Get upcoming sessions
+            $stmt = $pdo->prepare("
+                SELECT s.*, u.username as learner_name, st.name as tier_name
+                FROM Sessions s
+                JOIN Users u ON s.learner_id = u.user_id
+                JOIN ServiceTiers st ON s.tier_id = st.tier_id
+                WHERE s.coach_id = ? AND s.status = 'scheduled'
+                ORDER BY s.scheduled_time ASC
+                LIMIT 5
+            ");
+            $stmt->execute([$coach['coach_id']]);
+            $upcomingSessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } else {
+            // Initialize empty arrays if no coach profile exists
+            $serviceTiers = [];
+            $inquiries = [];
+            $upcomingSessions = [];
+        }
     } else {
         // Get learner's inquiries
         $stmt = $pdo->prepare("
@@ -153,18 +161,43 @@ include __DIR__ . '/../includes/header.php';
                     
                     <?php if ($is_coach && isset($coach)): ?>
                         <hr>
-                        <div class="mb-2">
-                            <strong>Expertise:</strong>
-                            <p><?= htmlspecialchars($coach['expertise'] ?: 'Not specified') ?></p>
+                        <?php if (isset($coach) && $coach): ?>
+                            <div class="mb-2">
+                                <strong>Expertise:</strong>
+                                <p><?= isset($coach['headline']) ? htmlspecialchars($coach['headline']) : 'Not specified' ?></p>
                             </div>
-                        <div class="mb-2">
-                            <strong>Availability:</strong>
-                            <p><?= htmlspecialchars($coach['availability'] ?: 'Not specified') ?></p>
+                            <div class="mb-2">
+                                <strong>Availability:</strong>
+                                <p>
+                                    <?php
+                                    if (isset($coach['coach_id'])) {
+                                        try {
+                                            $stmt = $pdo->prepare("
+                                                SELECT COUNT(*) FROM Coach_Availability 
+                                                WHERE coach_id = ? AND is_available = 1
+                                            ");
+                                            $stmt->execute([$coach['coach_id']]);
+                                            $availCount = $stmt->fetchColumn();
+                                            echo $availCount > 0 ? 'Schedule set' : 'Not specified';
+                                        } catch (PDOException $e) {
+                                            echo 'Not specified';
+                                        }
+                                    } else {
+                                        echo 'Not specified';
+                                    }
+                                    ?>
+                                </p>
+                                </div>
+                            <div class="mb-2">
+                                <strong>Rating:</strong>
+                                <p><?= isset($coach['rating']) && $coach['rating'] ? number_format($coach['rating'], 1) . ' / 5.0' : 'No ratings yet' ?></p>
+                            </div>
+                        <?php else: ?>
+                            <div class="alert alert-info">
+                                <p>You haven't set up your coach profile yet.</p>
+                                <a href="become-coach.php" class="btn btn-primary btn-sm">Set Up Coach Profile</a>
                         </div>
-                        <div class="mb-2">
-                            <strong>Rating:</strong>
-                            <p><?= $coach['rating'] ? number_format($coach['rating'], 1) . ' / 5.0' : 'No ratings yet' ?></p>
-                        </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                     
                     <div class="d-grid gap-2">
@@ -194,21 +227,21 @@ include __DIR__ . '/../includes/header.php';
                                 </thead>
                                 <tbody>
                                     <?php foreach ($serviceTiers as $tier): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($tier['name']) ?></td>
-                                        <td><?= htmlspecialchars(substr($tier['description'], 0, 50)) . (strlen($tier['description']) > 50 ? '...' : '') ?></td>
-                                        <td>$<?= number_format($tier['price'], 2) ?></td>
-                                        <td>
-                                            <a href="edit-tier.php?id=<?= $tier['tier_id'] ?>" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                        </td>
-                                    </tr>
+                                        <tr>
+                                            <td><?= htmlspecialchars($tier['name']) ?></td>
+                                            <td><?= htmlspecialchars(substr($tier['description'], 0, 50)) ?>...</td>
+                                            <td>$<?= number_format($tier['price'], 2) ?></td>
+                                            <td>
+                                                <a href="edit-coach-services.php" class="btn btn-sm btn-outline-primary">Edit</a>
+                                            </td>
+                                        </tr>
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
-                            <a href="add-tier.php" class="btn btn-primary">Add New Tier</a>
+                            <a href="edit-coach-services.php" class="btn btn-primary">Add New Tier</a>
                         <?php else: ?>
-                            <p>You don't have any service tiers yet.</p>
-                            <a href="add-tier.php" class="btn btn-primary">Create Your First Tier</a>
+                            <p class="text-muted">You haven't created any service tiers yet.</p>
+                            <a href="edit-coach-services.php" class="btn btn-primary">Create Your First Tier</a>
                         <?php endif; ?>
                     </div>
                 </div>

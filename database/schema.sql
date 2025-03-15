@@ -2,6 +2,10 @@
 -- Created for CS4116 Group 1 Project
 
 -- Drop tables if they exist to avoid conflicts
+DROP TABLE IF EXISTS Coach_Availability;
+DROP TABLE IF EXISTS Coach_Skills;
+DROP TABLE IF EXISTS Skills;
+DROP TABLE IF EXISTS Expertise_Categories;
 DROP TABLE IF EXISTS CoachCategories;
 DROP TABLE IF EXISTS Categories;
 DROP TABLE IF EXISTS CustomerInsightMessages;
@@ -35,10 +39,55 @@ CREATE TABLE Users (
 CREATE TABLE Coaches (
     coach_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT,
-    expertise VARCHAR(255),
-    availability TEXT,
+    headline VARCHAR(255), -- Short professional headline
+    about_me TEXT, -- Detailed coach description
+    experience VARCHAR(50), -- Years of experience
+    hourly_rate DECIMAL(8,2), -- Base hourly rate
+    video_url VARCHAR(255), -- Intro video URL
     rating DECIMAL(3,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
+);
+
+-- Create Expertise Categories table
+CREATE TABLE Expertise_Categories (
+    category_id INT PRIMARY KEY AUTO_INCREMENT,
+    category_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create Skills table
+CREATE TABLE Skills (
+    skill_id INT PRIMARY KEY AUTO_INCREMENT,
+    category_id INT,
+    skill_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES Expertise_Categories(category_id) ON DELETE CASCADE
+);
+
+-- Create Coach Skills table
+CREATE TABLE Coach_Skills (
+    coach_skill_id INT PRIMARY KEY AUTO_INCREMENT,
+    coach_id INT,
+    skill_id INT,
+    proficiency_level INT CHECK (proficiency_level BETWEEN 1 AND 5),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id) ON DELETE CASCADE,
+    FOREIGN KEY (skill_id) REFERENCES Skills(skill_id) ON DELETE CASCADE
+);
+
+-- Create Coach Availability table
+CREATE TABLE Coach_Availability (
+    availability_id INT PRIMARY KEY AUTO_INCREMENT,
+    coach_id INT,
+    day_of_week ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'),
+    start_time TIME,
+    end_time TIME,
+    is_available BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id) ON DELETE CASCADE
 );
 
 -- Create ServiceTiers table
@@ -166,6 +215,8 @@ CREATE TABLE CoachCategories (
 CREATE INDEX idx_users_email ON Users(email);
 CREATE INDEX idx_sessions_status ON Sessions(status);
 CREATE INDEX idx_reviews_rating ON Reviews(rating);
+CREATE INDEX idx_coach_skills ON Coach_Skills(coach_id, skill_id);
+CREATE INDEX idx_coach_availability ON Coach_Availability(coach_id, day_of_week);
 
 ALTER TABLE Users
 DROP COLUMN IF EXISTS google_id,

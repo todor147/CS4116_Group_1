@@ -90,7 +90,13 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link <?= $current_page === 'home.php' ? 'active' : '' ?>" href="home.php">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?= $current_page === 'coach-search.php' ? 'active' : '' ?>" href="coach-search.php">Find Coaches</a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="search.php?sort=rating">Highest Rated</a>
                     </li>
@@ -159,6 +165,9 @@
                                 <li><a class="dropdown-item" href="dashboard.php"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
                                 <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'business'): ?>
                                 <li><a class="dropdown-item" href="coach-settings.php"><i class="bi bi-gear me-2"></i>Coach Settings</a></li>
+                                <?php endif; ?>
+                                <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'admin'): ?>
+                                <li><a class="dropdown-item" href="manage-categories.php"><i class="bi bi-tags me-2"></i>Manage Categories</a></li>
                                 <?php endif; ?>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item text-danger" href="logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>

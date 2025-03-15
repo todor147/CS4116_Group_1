@@ -44,12 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Get the newly created user's ID
                 $user_id = $pdo->lastInsertId();
                 
-                // If business, insert into Coaches table
-                if ($user_type === 'business') {
-                    $stmt = $pdo->prepare("INSERT INTO Coaches (user_id, expertise, availability, rating) VALUES (?, '', '', 0)");
-                    $stmt->execute([$user_id]);
-                }
-
                 // Fetch the newly created user for session data
                 $stmt = $pdo->prepare("SELECT * FROM Users WHERE user_id = ?");
                 $stmt->execute([$user_id]);
@@ -58,11 +52,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Auto-login: Start user session
                 startUserSession($newUser);
                 
-                // Update last login time
-                updateLastLogin($pdo, $user_id);
-                
-                // Redirect to dashboard instead of login page
-                header('Location: dashboard.php?welcome=1');
+                // If business, redirect to become-coach page
+                if ($user_type === 'business') {
+                    $_SESSION['success_message'] = "Your account has been created. Let's set up your coach profile!";
+                    header('Location: become-coach.php');
+                    exit;
+                }
+
+                // Regular user, redirect to dashboard
+                $_SESSION['success_message'] = "Registration successful! Welcome to EduCoach.";
+                header('Location: dashboard.php');
                 exit;
             }
         } catch (PDOException $e) {
