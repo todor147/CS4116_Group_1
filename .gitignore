@@ -1,0 +1,51 @@
+# Ignore OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Ignore IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.cursor/
+
+# Ignore node modules
+node_modules/
+
+# Ignore vendor folders
+vendor/
+
+# Ignore environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Ignore composer files
+/vendor/
+composer.lock
+
+# Ignore cache files
+/cache/
+/tmp/
+
+# Ignore log files
+/logs/
+*.log
+
+// # Ignore database files
+// *.sql
+// *.sqlite
+
+# Ignore uploaded files
+/uploads/
+
+# Ignore XAMPP/WAMP files
+/xampp/
+/wamp/ 
