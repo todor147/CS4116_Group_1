@@ -1,7 +1,7 @@
-<?php 
+<?php
 // Start the session if not already started
 if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+session_start();
 }
 
 // Include database connection
@@ -110,7 +110,7 @@ try {
 }
 
 // Include header AFTER session and database operations
-include __DIR__ . '/../includes/header.php'; 
+include __DIR__ . '/../includes/header.php';
 ?>
 
 <?php if (isset($_SESSION['logged_in']) && !empty($upcoming_sessions)): ?>
@@ -162,10 +162,10 @@ include __DIR__ . '/../includes/header.php';
                             <option value="in-person">Around me</option>
                         </select>
                         <button class="btn btn-primary px-4" type="submit">Search</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
+    </div>
     </div>
 </section>
 
@@ -214,8 +214,8 @@ include __DIR__ . '/../includes/header.php';
                                 </div>
                                 <h5 class="card-title"><?= htmlspecialchars($category['name']) ?></h5>
                             </div>
-                        </div>
-                    </a>
+                    </div>
+                </a>
                 </div>
             <?php
                 }
@@ -229,75 +229,109 @@ include __DIR__ . '/../includes/header.php';
 <section class="py-5 bg-light">
     <div class="container">
         <div class="row mb-4">
-            <div class="col-12">
-                <h2 class="text-center">Top Rated Coaches</h2>
-                <p class="text-center text-muted">Our highly reviewed coaches ready to help you learn</p>
+            <div class="col-md-8">
+                <h2>Featured Coaches</h2>
+                <p class="lead">Connect with our top-rated coaches and start your learning journey today.</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <a href="coach-search.php" class="btn btn-primary">View All Coaches</a>
             </div>
         </div>
         
-        <div class="row g-4">
-            <?php foreach ($featured_coaches as $index => $coach): 
-                $profile_image = $coach['profile_image'] ?? 'default.jpg';
-                $image_path = "/assets/images/profiles/{$profile_image}";
-                $default_image = "https://via.placeholder.com/150";
-                $display_image = file_exists(__DIR__ . "/../assets/images/profiles/{$profile_image}") ? $image_path : $default_image;
+        <div class="row">
+            <?php
+            // Get top 4 coaches by rating
+            try {
+                $stmt = $pdo->prepare("
+                    SELECT c.*, u.username, u.profile_image, u.bio 
+                    FROM Coaches c
+                    JOIN Users u ON c.user_id = u.user_id
+                    ORDER BY c.rating DESC
+                    LIMIT 4
+                ");
+                $stmt->execute();
+                $featured_coaches = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 
-                // Limit description length
-                $expertise = $coach['expertise'];
-                if (strlen($expertise) > 100) {
-                    $expertise = substr($expertise, 0, 97) . '...';
-                }
-            ?>
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <img src="<?= $display_image ?>" alt="<?= htmlspecialchars($coach['username']) ?>" 
-                                 class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
-                            <div>
-                                <h5 class="card-title mb-0"><?= htmlspecialchars($coach['username']) ?></h5>
-                                <div class="text-warning">
+                foreach ($featured_coaches as $coach) {
+                    // Get coach's top skills
+                    $stmt = $pdo->prepare("
+                        SELECT s.skill_name
+                        FROM Coach_Skills cs
+                        JOIN Skills s ON cs.skill_id = s.skill_id
+                        WHERE cs.coach_id = ?
+                        ORDER BY cs.proficiency_level DESC
+                        LIMIT 3
+                    ");
+                    $stmt->execute([$coach['coach_id']]);
+                    $top_skills = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                    
+                    // Handle profile image
+                    $profile_image = $coach['profile_image'] ?? 'default.jpg';
+                    $image_path = "/assets/images/profiles/{$profile_image}";
+                    $default_image = "/assets/images/profiles/default.jpg";
+                    
+                    // Check if file exists and is readable
+                    $full_image_path = $_SERVER['DOCUMENT_ROOT'] . $image_path;
+                    $full_default_path = $_SERVER['DOCUMENT_ROOT'] . $default_image;
+                    
+                    // If user image doesn't exist or fallback doesn't exist, use an external default
+                    if (file_exists($full_image_path) && is_readable($full_image_path)) {
+                        $display_image = $image_path;
+                    } elseif (file_exists($full_default_path) && is_readable($full_default_path)) {
+                        $display_image = $default_image;
+                    } else {
+                        // Fallback to a reliable external avatar generator
+                        $display_image = "https://ui-avatars.com/api/?name=" . urlencode($coach['username']) . "&background=random&size=100";
+                    }
+                    ?>
+                    <div class="col-md-3 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body text-center">
+                                <img src="<?= $display_image ?>" alt="<?= htmlspecialchars($coach['username']) ?>" 
+                                     class="rounded-circle mb-3" style="width: 100px; height: 100px; object-fit: cover;">
+                                
+                                <h5 class="card-title"><?= htmlspecialchars($coach['username']) ?></h5>
+                                <p class="text-muted small"><?= htmlspecialchars($coach['headline']) ?></p>
+                                
+                                <!-- Rating display -->
+                                <div class="mb-2">
                                     <?php for ($i = 1; $i <= 5; $i++): ?>
-                                        <?php if ($i <= round($coach['rating'])): ?>
-                                            <i class="bi bi-star-fill"></i>
+                                        <?php if ($i <= floor($coach['rating'])): ?>
+                                            <i class="bi bi-star-fill text-warning"></i>
+                                        <?php elseif ($i - 0.5 == $coach['rating']): ?>
+                                            <i class="bi bi-star-half text-warning"></i>
                                         <?php else: ?>
-                                            <i class="bi bi-star"></i>
+                                            <i class="bi bi-star text-warning"></i>
                                         <?php endif; ?>
                                     <?php endfor; ?>
-                                    <span class="text-muted ms-1">(<?= $coach['review_count'] ?>)</span>
+                                    <span class="ms-1"><?= number_format($coach['rating'], 1) ?></span>
                                 </div>
+                                
+                                <?php if (!empty($top_skills)): ?>
+                                    <div class="mb-3">
+                                        <?php foreach ($top_skills as $skill): ?>
+                                            <span class="badge bg-light text-dark me-1 mb-1"><?= htmlspecialchars($skill) ?></span>
+            <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <a href="coach-profile.php?id=<?= $coach['coach_id'] ?>" class="btn btn-outline-primary btn-sm">View Profile</a>
                             </div>
                         </div>
-                        <h6 class="border-bottom pb-2"><?= htmlspecialchars($expertise) ?></h6>
-                        <p class="card-text text-muted small"><?= htmlspecialchars(substr($coach['bio'] ?? '', 0, 120)) ?><?= (strlen($coach['bio'] ?? '') > 120) ? '...' : '' ?></p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <?php if (isset($coach['availability']) && !empty($coach['availability'])): ?>
-                                <span class="badge bg-success">Available</span>
-                            <?php endif; ?>
-                            <a href="coach-profile.php?id=<?= $coach['coach_id'] ?>" class="btn btn-outline-primary">View Profile</a>
-                        </div>
                     </div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-            
-            <?php if (empty($featured_coaches)): ?>
-            <div class="col-12 text-center">
-                <p>No featured coaches available at the moment.</p>
-                <a href="register.php?type=business" class="btn btn-outline-primary">Become a Coach</a>
-            </div>
-            <?php else: ?>
-            <div class="col-12 text-center mt-4">
-                <a href="search.php" class="btn btn-primary">See More Coaches</a>
-            </div>
-            <?php endif; ?>
+                    <?php
+                }
+            } catch (PDOException $e) {
+                echo '<div class="col-12"><div class="alert alert-danger">Error loading featured coaches.</div></div>';
+            }
+            ?>
         </div>
     </div>
 </section>
 
 <!-- Testimonials Section -->
 <section class="py-5">
-    <div class="container">
+        <div class="container">
         <div class="row mb-4">
             <div class="col-12 text-center">
                 <h2>The Perfect Match</h2>
@@ -305,8 +339,8 @@ include __DIR__ . '/../includes/header.php';
             </div>
         </div>
         
-        <div class="row g-4">
-            <?php 
+            <div class="row g-4">
+                <?php
             if (empty($testimonials)) {
                 // Sample testimonials if none in database
                 $sample_testimonials = [
@@ -331,7 +365,7 @@ include __DIR__ . '/../includes/header.php';
                 ];
                 
                 foreach ($sample_testimonials as $testimonial):
-            ?>
+                ?>
                 <div class="col-md-4">
                     <div class="card h-100 border-0 shadow-sm">
                         <div class="card-body">
@@ -341,7 +375,7 @@ include __DIR__ . '/../includes/header.php';
                                 <i class="bi bi-star-fill"></i>
                                 <i class="bi bi-star-fill"></i>
                                 <i class="bi bi-star-fill"></i>
-                            </div>
+                                </div>
                             <p class="card-text">"<?= htmlspecialchars($testimonial['comment']) ?>"</p>
                             <div class="d-flex justify-content-between align-items-center mt-3">
                                 <div>
@@ -423,9 +457,9 @@ include __DIR__ . '/../includes/header.php';
             <div class="col-12 text-center">
                 <h2>How It Works</h2>
                 <p class="text-muted">Three simple steps to start your learning journey</p>
-            </div>
         </div>
-        
+    </div>
+
         <div class="row g-4">
             <div class="col-md-4">
                 <div class="text-center">
@@ -466,6 +500,6 @@ include __DIR__ . '/../includes/header.php';
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
     }
-</style>
+</style> 
 
 <?php include __DIR__ . '/../includes/footer.php'; ?> 

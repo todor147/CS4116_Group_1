@@ -9,6 +9,8 @@ $average_rating = 0;
 $review_count = 0;
 $coach_services = [];
 $reviews = [];
+$coach_skills = [];
+$coach_availability = [];
 
 // Check if coach_id is provided
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
@@ -69,6 +71,28 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             ");
             $stmt->execute([$coach_id]);
             $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Get coach skills
+            $stmt = $pdo->prepare("
+                SELECT cs.proficiency_level, s.skill_name, s.description, ec.category_name
+                FROM Coach_Skills cs
+                JOIN Skills s ON cs.skill_id = s.skill_id
+                JOIN Expertise_Categories ec ON s.category_id = ec.category_id
+                WHERE cs.coach_id = ?
+                ORDER BY cs.proficiency_level DESC, s.skill_name ASC
+            ");
+            $stmt->execute([$coach_id]);
+            $coach_skills = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Get coach availability
+            $stmt = $pdo->prepare("
+                SELECT day_of_week, start_time, end_time
+                FROM Coach_Availability
+                WHERE coach_id = ? AND is_available = 1
+                ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+            ");
+            $stmt->execute([$coach_id]);
+            $coach_availability = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
     } catch (PDOException $e) {
         $error_message = "Error fetching coach data: " . $e->getMessage();
@@ -126,6 +150,7 @@ include __DIR__ . '/../includes/header.php';
                              class="rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
                         
                         <h3 class="card-title"><?= htmlspecialchars($coach['username']) ?></h3>
+                        <h5 class="text-muted mb-3"><?= htmlspecialchars($coach['headline']) ?></h5>
                         
                         <!-- Rating display -->
                         <div class="mb-2">
@@ -141,8 +166,9 @@ include __DIR__ . '/../includes/header.php';
                             <span class="ms-1">(<?= $review_count ?> reviews)</span>
                         </div>
                         
-                        <div class="mb-3">
-                            <span class="badge bg-primary mb-1"><?= htmlspecialchars($coach['expertise']) ?></span>
+                        <div class="d-flex justify-content-center mb-3">
+                            <span class="badge bg-primary me-1">$<?= number_format($coach['hourly_rate'], 2) ?>/hr</span>
+                            <span class="badge bg-secondary"><?= htmlspecialchars($coach['experience']) ?> Experience</span>
                         </div>
                         
                         <p class="card-text"><?= nl2br(htmlspecialchars($coach['bio'] ?? '')) ?></p>
@@ -161,13 +187,119 @@ include __DIR__ . '/../includes/header.php';
                         <h5 class="card-title mb-0">Availability</h5>
                     </div>
                     <div class="card-body">
-                        <p><?= nl2br(htmlspecialchars($coach['availability'])) ?></p>
+                        <?php if (empty($coach_availability)): ?>
+                            <p class="text-muted">No availability information provided.</p>
+                        <?php else: ?>
+                            <ul class="list-group list-group-flush">
+                                <?php foreach ($coach_availability as $slot): ?>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <strong><?= htmlspecialchars($slot['day_of_week']) ?></strong>
+                                        <span>
+                                            <?= date('g:i A', strtotime($slot['start_time'])) ?> - 
+                                            <?= date('g:i A', strtotime($slot['end_time'])) ?>
+                                        </span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <!-- Skills Section -->
+                <div class="card shadow mt-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">Skills & Expertise</h5>
+                    </div>
+                    <div class="card-body">
+                        <?php if (empty($coach_skills)): ?>
+                            <p class="text-muted">No skills information provided.</p>
+                        <?php else: ?>
+                            <?php 
+                            // Group skills by category
+                            $skills_by_category = [];
+                            foreach ($coach_skills as $skill) {
+                                $category = $skill['category_name'];
+                                if (!isset($skills_by_category[$category])) {
+                                    $skills_by_category[$category] = [];
+                                }
+                                $skills_by_category[$category][] = $skill;
+                            }
+                            ?>
+                            
+                            <div class="accordion" id="skillsAccordion">
+                                <?php $index = 0; ?>
+                                <?php foreach ($skills_by_category as $category => $skills): ?>
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header" id="heading<?= $index ?>">
+                                            <button class="accordion-button <?= $index > 0 ? 'collapsed' : '' ?>" type="button" 
+                                                    data-bs-toggle="collapse" data-bs-target="#collapse<?= $index ?>" 
+                                                    aria-expanded="<?= $index === 0 ? 'true' : 'false' ?>" 
+                                                    aria-controls="collapse<?= $index ?>">
+                                                <?= htmlspecialchars($category) ?>
+                                            </button>
+                                        </h2>
+                                        <div id="collapse<?= $index ?>" 
+                                             class="accordion-collapse collapse <?= $index === 0 ? 'show' : '' ?>" 
+                                             aria-labelledby="heading<?= $index ?>" 
+                                             data-bs-parent="#skillsAccordion">
+                                            <div class="accordion-body">
+                                                <ul class="list-group list-group-flush">
+                                                    <?php foreach ($skills as $skill): ?>
+                                                        <li class="list-group-item">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <span><?= htmlspecialchars($skill['skill_name']) ?></span>
+                                                                <div>
+                                                                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                                        <?php if ($i <= $skill['proficiency_level']): ?>
+                                                                            <i class="bi bi-circle-fill text-primary small"></i>
+                                                                        <?php else: ?>
+                                                                            <i class="bi bi-circle text-primary small"></i>
+                                                                        <?php endif; ?>
+                                                                    <?php endfor; ?>
+                                                                </div>
+                                                            </div>
+                                                            <?php if (!empty($skill['description'])): ?>
+                                                                <small class="text-muted"><?= htmlspecialchars($skill['description']) ?></small>
+                                                            <?php endif; ?>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php $index++; ?>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
             
-            <!-- Service Tiers -->
             <div class="col-md-8">
+                <!-- About Me Section -->
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">About Me</h5>
+                    </div>
+                    <div class="card-body">
+                        <?php if (!empty($coach['about_me'])): ?>
+                            <div class="mb-4">
+                                <?= nl2br(htmlspecialchars($coach['about_me'])) ?>
+                            </div>
+                        <?php else: ?>
+                            <p class="text-muted">No detailed information provided.</p>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($coach['video_url'])): ?>
+                            <div class="ratio ratio-16x9 mt-4">
+                                <iframe src="<?= htmlspecialchars($coach['video_url']) ?>" 
+                                        title="Coach Introduction" allowfullscreen></iframe>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <!-- Service Tiers -->
                 <div class="card shadow mb-4">
                     <div class="card-header bg-primary text-white">
                         <h5 class="card-title mb-0">Service Tiers</h5>
@@ -183,7 +315,7 @@ include __DIR__ . '/../includes/header.php';
                                             <div class="card-body">
                                                 <h5 class="card-title"><?= htmlspecialchars($service['name']) ?></h5>
                                                 <h6 class="card-subtitle mb-2 text-muted">
-                                                    $<?= number_format($service['price'], 2) ?> / <?= htmlspecialchars($service['duration']) ?>
+                                                    $<?= number_format($service['price'], 2) ?>
                                                 </h6>
                                                 <p class="card-text"><?= nl2br(htmlspecialchars($service['description'])) ?></p>
                                             </div>
@@ -251,9 +383,13 @@ include __DIR__ . '/../includes/header.php';
                                 </div>
                             <?php endforeach; ?>
                             
-                            <a href="all-reviews.php?coach_id=<?= $coach_id ?>" class="btn btn-outline-primary">
-                                View All Reviews
-                            </a>
+                            <?php if ($review_count > 5): ?>
+                                <div class="text-center">
+                                    <a href="coach-reviews.php?id=<?= $coach_id ?>" class="btn btn-outline-primary">
+                                        View All <?= $review_count ?> Reviews
+                                    </a>
+                                </div>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                 </div>
