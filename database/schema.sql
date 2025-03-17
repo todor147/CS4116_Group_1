@@ -217,8 +217,3 @@ CREATE INDEX idx_sessions_status ON Sessions(status);
 CREATE INDEX idx_reviews_rating ON Reviews(rating);
 CREATE INDEX idx_coach_skills ON Coach_Skills(coach_id, skill_id);
 CREATE INDEX idx_coach_availability ON Coach_Availability(coach_id, day_of_week);
-
-ALTER TABLE Users
-DROP COLUMN IF EXISTS google_id,
-DROP COLUMN IF EXISTS facebook_id,
-DROP COLUMN IF EXISTS github_id; 
