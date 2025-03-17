@@ -544,43 +544,26 @@ include '../includes/header.php';
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Back to Edit</button>
-                <button type="button" class="btn btn-primary" id="confirmAndSave">Confirm & Save</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Edit</button>
+                <button type="button" class="btn btn-primary" id="saveAfterPreview">Save Service</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Add JavaScript for preview functionality and templates -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Description templates
-    const templates = {
-        basic: "This basic coaching package includes:\n\n• One 45-minute coaching session\n• Personalized learning plan\n• Email support between sessions\n• Session notes and summary\n• Recommended resources and materials",
-        standard: "Enhance your learning with our standard package:\n\n• One 60-minute comprehensive coaching session\n• Personalized learning plan and progress tracking\n• Practice exercises and homework assignments\n• Unlimited email support between sessions\n• Access to supplementary learning materials\n• Session recordings for review",
-        premium: "Our premium coaching experience includes:\n\n• One 90-minute in-depth coaching session\n• Comprehensive assessment and personalized learning path\n• Unlimited email and chat support between sessions\n• Priority scheduling and flexible rescheduling\n• Customized learning materials and resources\n• Session recordings for future reference\n• Monthly progress report and performance review\n• Direct access to instructor for urgent questions"
-    };
-    
-    // Add template buttons functionality
-    document.querySelectorAll('.description-template').forEach(button => {
-        button.addEventListener('click', function() {
-            const templateName = this.dataset.template;
-            document.getElementById('description').value = templates[templateName];
-            
-            // Visual feedback
-            document.querySelectorAll('.description-template').forEach(btn => {
-                btn.classList.remove('active', 'btn-secondary');
-                btn.classList.add('btn-outline-secondary');
-            });
-            this.classList.remove('btn-outline-secondary');
-            this.classList.add('btn-secondary', 'active');
-        });
-    });
-    
+    // Template buttons functionality
+    const basicTemplate = document.getElementById('basicTemplate');
+    const standardTemplate = document.getElementById('standardTemplate');
+    const premiumTemplate = document.getElementById('premiumTemplate');
+    const descriptionField = document.getElementById('description');
+
     // Preview functionality
     const previewButton = document.getElementById('previewBeforeSave');
-    const confirmButton = document.getElementById('confirmAndSave');
+    const saveAfterPreviewButton = document.getElementById('saveAfterPreview');
     const serviceForm = document.getElementById('addServiceForm');
+    const previewCheckbox = document.getElementById('enablePreview');
     
     // Update preview content
     function updatePreview() {
@@ -594,29 +577,80 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Show preview modal
-    previewButton.addEventListener('click', function() {
-        updatePreview();
-        
-        // Hide current modal and show preview
-        $('#addServiceModal').modal('hide');
-        $('#previewBeforeSaveModal').modal('show');
-    });
-    
-    // Confirm and submit form
-    confirmButton.addEventListener('click', function() {
-        $('#previewBeforeSaveModal').modal('hide');
-        serviceForm.submit();
-    });
-    
-    // Auto-preview if checkbox is enabled
-    serviceForm.addEventListener('submit', function(e) {
-        if (document.getElementById('enablePreview').checked) {
+    if (previewButton) {
+        previewButton.addEventListener('click', function(e) {
             e.preventDefault();
             updatePreview();
-            $('#addServiceModal').modal('hide');
-            $('#previewBeforeSaveModal').modal('show');
-        }
-    });
+            const addServiceModal = new bootstrap.Modal(document.getElementById('addServiceModal'));
+            const previewModal = new bootstrap.Modal(document.getElementById('previewBeforeSaveModal'));
+            addServiceModal.hide();
+            previewModal.show();
+        });
+    }
+    
+    // Save after preview
+    if (saveAfterPreviewButton) {
+        saveAfterPreviewButton.addEventListener('click', function() {
+            const previewModal = bootstrap.Modal.getInstance(document.getElementById('previewBeforeSaveModal'));
+            previewModal.hide();
+            serviceForm.submit();
+        });
+    }
+    
+    // Handle form submission with preview
+    if (serviceForm) {
+        serviceForm.addEventListener('submit', function(e) {
+            if (previewCheckbox && previewCheckbox.checked) {
+                e.preventDefault();
+                updatePreview();
+                const addServiceModal = new bootstrap.Modal(document.getElementById('addServiceModal'));
+                const previewModal = new bootstrap.Modal(document.getElementById('previewBeforeSaveModal'));
+                addServiceModal.hide();
+                previewModal.show();
+            }
+        });
+    }
+
+    // Template functionality
+    if (basicTemplate) {
+        basicTemplate.addEventListener('click', function() {
+            descriptionField.value = `Basic coaching package includes:
+
+• One 45-minute coaching session
+• Basic learning materials
+• Email support for questions
+• Practice exercises
+• Session notes`;
+        });
+    }
+
+    if (standardTemplate) {
+        standardTemplate.addEventListener('click', function() {
+            descriptionField.value = `Enhance your learning with our standard package:
+
+• One 60-minute comprehensive coaching session
+• Personalized learning plan and progress tracking
+• Practice exercises and homework assignments
+• Unlimited email support between sessions
+• Access to supplementary learning materials
+• Session recordings for review`;
+        });
+    }
+
+    if (premiumTemplate) {
+        premiumTemplate.addEventListener('click', function() {
+            descriptionField.value = `Premium coaching experience includes:
+
+• 90-minute intensive coaching session
+• Comprehensive learning plan with milestones
+• Advanced study materials and resources
+• Priority email and chat support
+• Detailed progress reports and assessments
+• Session recordings with annotated notes
+• Additional 30-minute follow-up consultation
+• Access to exclusive learning resources`;
+        });
+    }
 });
 </script>
 
