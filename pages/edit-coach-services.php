@@ -212,6 +212,9 @@ include '../includes/header.php';
                     <a href="edit-coach-services.php" class="list-group-item list-group-item-action active">
                         <i class="bi bi-list-check"></i> Service Tiers
                     </a>
+                    <a href="service-analytics.php" class="list-group-item list-group-item-action">
+                        <i class="bi bi-graph-up"></i> Service Analytics
+                    </a>
                     <a href="coach-profile.php?id=<?= $coach['coach_id'] ?>" class="list-group-item list-group-item-action">
                         <i class="bi bi-eye"></i> View Public Profile
                     </a>
@@ -269,6 +272,11 @@ include '../includes/header.php';
                                                         </a>
                                                     </li>
                                                     <li>
+                                                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#previewServiceModal<?= $tier['tier_id'] ?>">
+                                                            <i class="bi bi-eye"></i> Preview
+                                                        </a>
+                                                    </li>
+                                                    <li>
                                                         <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteServiceModal<?= $tier['tier_id'] ?>">
                                                             <i class="bi bi-trash"></i> Delete
                                                         </a>
@@ -300,11 +308,13 @@ include '../includes/header.php';
                                                         <label for="edit_name<?= $tier['tier_id'] ?>" class="form-label">Service Name *</label>
                                                         <input type="text" class="form-control" id="edit_name<?= $tier['tier_id'] ?>" name="name" 
                                                                value="<?= htmlspecialchars($tier['name']) ?>" required>
+                                                        <small class="text-muted">Choose a clear, descriptive name that highlights the value of this service.</small>
                                                     </div>
                                                     <div class="mb-3">
                                                         <label for="edit_description<?= $tier['tier_id'] ?>" class="form-label">Description *</label>
                                                         <textarea class="form-control" id="edit_description<?= $tier['tier_id'] ?>" name="description" 
-                                                                  rows="4" required><?= htmlspecialchars($tier['description']) ?></textarea>
+                                                                  rows="6" required><?= htmlspecialchars($tier['description']) ?></textarea>
+                                                        <small class="text-muted">Be specific about what's included. Use bullet points (• item) for better readability.</small>
                                                     </div>
                                                     <div class="mb-3">
                                                         <label for="edit_price<?= $tier['tier_id'] ?>" class="form-label">Price (USD) *</label>
@@ -313,6 +323,7 @@ include '../includes/header.php';
                                                             <input type="number" class="form-control" id="edit_price<?= $tier['tier_id'] ?>" name="price" 
                                                                    step="0.01" min="1" value="<?= $tier['price'] ?>" required>
                                                         </div>
+                                                        <small class="text-muted">Set competitive rates based on your experience level and market demand.</small>
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">
@@ -320,6 +331,58 @@ include '../includes/header.php';
                                                     <button type="submit" class="btn btn-primary">Save Changes</button>
                                                 </div>
                                             </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Preview Service Modal -->
+                                <div class="modal fade" id="previewServiceModal<?= $tier['tier_id'] ?>" tabindex="-1" aria-labelledby="previewServiceModalLabel<?= $tier['tier_id'] ?>" aria-hidden="true">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="previewServiceModalLabel<?= $tier['tier_id'] ?>">Service Preview</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="card">
+                                                    <div class="card-header bg-light">
+                                                        <h5 class="mb-0">Customer View</h5>
+                                                        <small class="text-muted">This is how your service will appear to potential customers</small>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="service-preview p-4 border rounded">
+                                                            <div class="row">
+                                                                <div class="col-md-8">
+                                                                    <h3 class="mb-3"><?= htmlspecialchars($tier['name']) ?></h3>
+                                                                    <div class="description mb-4">
+                                                                        <?= nl2br(htmlspecialchars($tier['description'])) ?>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-4 text-center">
+                                                                    <div class="price-tag p-3 mb-3 bg-light rounded">
+                                                                        <h4 class="mb-0">$<?= number_format($tier['price'], 2) ?></h4>
+                                                                        <small class="text-muted">per session</small>
+                                                                    </div>
+                                                                    <button class="btn btn-primary btn-lg w-100" disabled>Book Session</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-3 text-muted">
+                                                    <p><strong>Tips for effective service descriptions:</strong></p>
+                                                    <ul>
+                                                        <li>Highlight unique benefits of this service tier</li>
+                                                        <li>Be specific about session duration and frequency</li>
+                                                        <li>Mention any special tools or resources included</li>
+                                                        <li>Use bullet points for easy scanning</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#editServiceModal<?= $tier['tier_id'] ?>">Edit This Service</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -359,9 +422,9 @@ include '../includes/header.php';
 
 <!-- Add Service Modal -->
 <div class="modal fade" id="addServiceModal" tabindex="-1" aria-labelledby="addServiceModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="post" action="">
+            <form method="post" action="" id="addServiceForm">
                 <input type="hidden" name="action" value="add">
                 
                 <div class="modal-header">
@@ -369,32 +432,226 @@ include '../includes/header.php';
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Service Name *</label>
-                        <input type="text" class="form-control" id="name" name="name" 
-                               placeholder="e.g., Basic Coaching Session" required>
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading"><i class="bi bi-info-circle-fill me-2"></i>Creating Effective Service Tiers</h6>
+                                <p class="mb-0">Consider offering 2-3 service tiers at different price points. This gives your customers options while highlighting the value of premium offerings.</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Description *</label>
-                        <textarea class="form-control" id="description" name="description" 
-                                  rows="4" placeholder="Describe what's included in this service tier..." required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="price" class="form-label">Price (USD) *</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" id="price" name="price" 
-                                   step="0.01" min="1" value="<?= $coach['hourly_rate'] ?? '40.00' ?>" required>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Service Tier Name *</label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       placeholder="e.g., Basic Coaching, Standard Package, Premium Mentorship" required>
+                                <small class="text-muted">Choose a clear, descriptive name that highlights the value of this service.</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description *</label>
+                                <div class="mb-2">
+                                    <div class="btn-group description-template-group" role="group">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary description-template" data-template="basic">Basic Template</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary description-template" data-template="standard">Standard Template</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary description-template" data-template="premium">Premium Template</button>
+                                    </div>
+                                </div>
+                                <textarea class="form-control" id="description" name="description" 
+                                          rows="8" placeholder="Describe what's included in this service tier..." required></textarea>
+                                <small class="text-muted">Be specific about what's included. Use bullet points (• item) for better readability.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="price" class="form-label">Price (USD) *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="price" name="price" 
+                                           step="0.01" min="1" value="<?= $coach['hourly_rate'] ?? '40.00' ?>" required>
+                                </div>
+                                <small class="text-muted">Set competitive rates based on your experience level and market demand.</small>
+                            </div>
+                            
+                            <div class="card mb-3 mt-4">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Tips for Success</h6>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="small mb-0">
+                                        <li>Focus on the benefits, not just features</li>
+                                        <li>Include session duration and frequency</li>
+                                        <li>Mention preparation/follow-up time</li>
+                                        <li>Highlight tools or resources provided</li>
+                                        <li>Consider adding tiered pricing structure</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="enablePreview" checked>
+                                <label class="form-check-label" for="enablePreview">
+                                    Preview before saving
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-info" id="previewBeforeSave">Preview</button>
                     <button type="submit" class="btn btn-primary">Add Service</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<!-- Preview Before Save Modal -->
+<div class="modal fade" id="previewBeforeSaveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Service Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Customer View</h5>
+                        <small class="text-muted">This is how your service will appear to potential customers</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="service-preview p-4 border rounded">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h3 class="mb-3" id="preview-name"></h3>
+                                    <div class="description mb-4" id="preview-description"></div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="price-tag p-3 mb-3 bg-light rounded">
+                                        <h4 class="mb-0" id="preview-price"></h4>
+                                        <small class="text-muted">per session</small>
+                                    </div>
+                                    <button class="btn btn-primary btn-lg w-100" disabled>Book Session</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Edit</button>
+                <button type="button" class="btn btn-primary" id="saveAfterPreview">Save Service</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Template buttons functionality
+    const basicTemplate = document.getElementById('basicTemplate');
+    const standardTemplate = document.getElementById('standardTemplate');
+    const premiumTemplate = document.getElementById('premiumTemplate');
+    const descriptionField = document.getElementById('description');
+
+    // Preview functionality
+    const previewButton = document.getElementById('previewBeforeSave');
+    const saveAfterPreviewButton = document.getElementById('saveAfterPreview');
+    const serviceForm = document.getElementById('addServiceForm');
+    const previewCheckbox = document.getElementById('enablePreview');
+    
+    // Update preview content
+    function updatePreview() {
+        const name = document.getElementById('name').value || '[Service Name]';
+        const description = document.getElementById('description').value || '[Service Description]';
+        const price = document.getElementById('price').value || '0.00';
+        
+        document.getElementById('preview-name').textContent = name;
+        document.getElementById('preview-description').innerHTML = description.replace(/\n/g, '<br>');
+        document.getElementById('preview-price').textContent = '$' + parseFloat(price).toFixed(2);
+    }
+    
+    // Show preview modal
+    if (previewButton) {
+        previewButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            updatePreview();
+            const addServiceModal = new bootstrap.Modal(document.getElementById('addServiceModal'));
+            const previewModal = new bootstrap.Modal(document.getElementById('previewBeforeSaveModal'));
+            addServiceModal.hide();
+            previewModal.show();
+        });
+    }
+    
+    // Save after preview
+    if (saveAfterPreviewButton) {
+        saveAfterPreviewButton.addEventListener('click', function() {
+            const previewModal = bootstrap.Modal.getInstance(document.getElementById('previewBeforeSaveModal'));
+            previewModal.hide();
+            serviceForm.submit();
+        });
+    }
+    
+    // Handle form submission with preview
+    if (serviceForm) {
+        serviceForm.addEventListener('submit', function(e) {
+            if (previewCheckbox && previewCheckbox.checked) {
+                e.preventDefault();
+                updatePreview();
+                const addServiceModal = new bootstrap.Modal(document.getElementById('addServiceModal'));
+                const previewModal = new bootstrap.Modal(document.getElementById('previewBeforeSaveModal'));
+                addServiceModal.hide();
+                previewModal.show();
+            }
+        });
+    }
+
+    // Template functionality
+    if (basicTemplate) {
+        basicTemplate.addEventListener('click', function() {
+            descriptionField.value = `Basic coaching package includes:
+
+• One 45-minute coaching session
+• Basic learning materials
+• Email support for questions
+• Practice exercises
+• Session notes`;
+        });
+    }
+
+    if (standardTemplate) {
+        standardTemplate.addEventListener('click', function() {
+            descriptionField.value = `Enhance your learning with our standard package:
+
+• One 60-minute comprehensive coaching session
+• Personalized learning plan and progress tracking
+• Practice exercises and homework assignments
+• Unlimited email support between sessions
+• Access to supplementary learning materials
+• Session recordings for review`;
+        });
+    }
+
+    if (premiumTemplate) {
+        premiumTemplate.addEventListener('click', function() {
+            descriptionField.value = `Premium coaching experience includes:
+
+• 90-minute intensive coaching session
+• Comprehensive learning plan with milestones
+• Advanced study materials and resources
+• Priority email and chat support
+• Detailed progress reports and assessments
+• Session recordings with annotated notes
+• Additional 30-minute follow-up consultation
+• Access to exclusive learning resources`;
+        });
+    }
+});
+</script>
 
 <?php include '../includes/footer.php'; ?> 

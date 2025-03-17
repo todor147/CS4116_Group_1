@@ -104,6 +104,68 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 include __DIR__ . '/../includes/header.php';
 ?>
 
+<style>
+/* Service Tier Cards Styling */
+.service-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.service-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.service-card .card-header {
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.service-card .service-description {
+    font-size: 0.95rem;
+}
+
+.service-card .service-description ul,
+.service-card .service-description ol {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Ribbon styling */
+.ribbon {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 150px;
+    height: 150px;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.ribbon span {
+    position: absolute;
+    display: block;
+    width: 225px;
+    padding: 8px 0;
+    background-color: #3d6bfd;
+    color: #fff;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+    transform: rotate(45deg);
+    right: -25px;
+    top: 45px;
+    text-transform: uppercase;
+}
+
+/* Price display */
+.display-6 {
+    font-size: 2.5rem;
+    font-weight: 500;
+}
+</style>
+
 <div class="container mt-4 mb-5">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -309,29 +371,63 @@ include __DIR__ . '/../includes/header.php';
                             <p class="text-muted">No service tiers available at the moment.</p>
                         <?php else: ?>
                             <div class="row">
-                                <?php foreach ($coach_services as $service): ?>
-                                    <div class="col-md-6 mb-4">
-                                        <div class="card h-100">
-                                            <div class="card-body">
-                                                <h5 class="card-title"><?= htmlspecialchars($service['name']) ?></h5>
-                                                <h6 class="card-subtitle mb-2 text-muted">
-                                                    $<?= number_format($service['price'], 2) ?>
-                                                </h6>
-                                                <p class="card-text"><?= nl2br(htmlspecialchars($service['description'])) ?></p>
+                                <?php foreach ($coach_services as $index => $service): ?>
+                                    <div class="col-md-4 mb-4">
+                                        <div class="card h-100 service-card<?= $index === 1 ? ' border-primary' : '' ?>">
+                                            <?php if ($index === 1): ?>
+                                                <div class="ribbon">
+                                                    <span>POPULAR</span>
+                                                </div>
+                                            <?php endif; ?>
+                                            <div class="card-header text-center bg-light py-3">
+                                                <h5 class="card-title mb-0"><?= htmlspecialchars($service['name']) ?></h5>
                                             </div>
-                                            <div class="card-footer bg-transparent border-0">
+                                            <div class="card-body">
+                                                <div class="text-center mb-4">
+                                                    <h4 class="display-6 mb-0">$<?= number_format($service['price'], 2) ?></h4>
+                                                    <p class="text-muted">per session</p>
+                                                </div>
+                                                <div class="service-description">
+                                                    <?= nl2br(htmlspecialchars($service['description'])) ?>
+                                                </div>
+                                            </div>
+                                            <div class="card-footer bg-transparent text-center py-3">
                                                 <?php if (isset($_SESSION['logged_in'])): ?>
                                                     <a href="book-session.php?tier_id=<?= $service['tier_id'] ?>" 
-                                                       class="btn btn-primary btn-sm">Book Session</a>
+                                                       class="btn <?= $index === 1 ? 'btn-primary' : 'btn-outline-primary' ?> btn-lg w-100">Book Session</a>
                                                 <?php else: ?>
-                                                    <a href="login.php" class="btn btn-outline-primary btn-sm">
-                                                        Login to Book
-                                                    </a>
+                                                    <a href="login.php?redirect=coach-profile.php?id=<?= $coach_id ?>" 
+                                                       class="btn <?= $index === 1 ? 'btn-primary' : 'btn-outline-primary' ?> btn-lg w-100">Login to Book</a>
                                                 <?php endif; ?>
                                             </div>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="alert alert-info mb-0">
+                                        <div class="d-flex">
+                                            <div class="me-3">
+                                                <i class="bi bi-info-circle-fill fs-4"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="alert-heading">Not sure which service is right for you?</h6>
+                                                <p class="mb-0">You can message <?= htmlspecialchars($coach['username']) ?> to discuss your specific needs before booking a session.</p>
+                                                <?php if (isset($_SESSION['logged_in'])): ?>
+                                                    <a href="messages.php?recipient=<?= $coach['user_id'] ?>" class="btn btn-sm btn-info mt-2">
+                                                        <i class="bi bi-chat-dots"></i> Send Message
+                                                    </a>
+                                                <?php else: ?>
+                                                    <a href="login.php?redirect=coach-profile.php?id=<?= $coach_id ?>" class="btn btn-sm btn-info mt-2">
+                                                        <i class="bi bi-chat-dots"></i> Login to Message
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         <?php endif; ?>
                     </div>
