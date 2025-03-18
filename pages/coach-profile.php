@@ -254,12 +254,16 @@ include __DIR__ . '/../includes/header.php';
                         <?php else: ?>
                             <ul class="list-group list-group-flush">
                                 <?php foreach ($coach_availability as $slot): ?>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <strong><?= htmlspecialchars($slot['day_of_week']) ?></strong>
-                                        <span>
-                                            <?= date('g:i A', strtotime($slot['start_time'])) ?> - 
-                                            <?= date('g:i A', strtotime($slot['end_time'])) ?>
-                                        </span>
+                                    <li class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong><?= date('l, F j', strtotime($slot['available_time'])) ?></strong>
+                                                <span class="text-muted ms-2">
+                                                    <?= date('g:i A', strtotime($slot['available_time'])) ?>
+                                                </span>
+                                            </div>
+                                            <span class="badge bg-success">Available</span>
+                                        </div>
                                     </li>
                                 <?php endforeach; ?>
                             </ul>
@@ -393,7 +397,7 @@ include __DIR__ . '/../includes/header.php';
                                             </div>
                                             <div class="card-footer bg-transparent text-center py-3">
                                                 <?php if (isset($_SESSION['logged_in'])): ?>
-                                                    <a href="book-session.php?tier_id=<?= $service['tier_id'] ?>" 
+                                                    <a href="book.php?coach_id=<?= $coach_id ?>&tier_id=<?= $service['tier_id'] ?>" 
                                                        class="btn <?= $index === 1 ? 'btn-primary' : 'btn-outline-primary' ?> btn-lg w-100">Book Session</a>
                                                 <?php else: ?>
                                                     <a href="login.php?redirect=coach-profile.php?id=<?= $coach_id ?>" 

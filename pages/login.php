@@ -18,6 +18,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isValidEmail($email)) {
         $error = 'Please enter a valid email address';
     } else {
+        // Check for admin login
+        if ($email === 'admin@educoach.com' && $password === 'Passw0rd') {
+            $_SESSION['logged_in'] = true;
+            $_SESSION['user_id'] = 0; // Special ID for admin
+            $_SESSION['is_admin'] = true;
+            header('Location: admin.php');
+            exit;
+        }
+        
+        // Regular user login
         $user = authenticateUser($pdo, $email, $password);
         
         if ($user) {
