@@ -1,20 +1,24 @@
 <?php
 session_start();
-require 'includes/db_connection.php';
+require_once 'includes/db_connection.php';
 
-// Basic routing
-$page = $_GET['page'] ?? 'home';
+// Include the header
+include 'includes/header.php';
+?>
 
-$allowed_pages = ['home', 'login', 'register', 'dashboard', 'review', 'sessions'];
-if (!in_array($page, $allowed_pages)) {
-    $page = '404';
-}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h1>Welcome to EduCoach</h1>
+            <p>This is the homepage of our educational coaching platform.</p>
+            
+            <?php if (isset($_SESSION['logged_in'])): ?>
+                <p>You are logged in as: <?= htmlspecialchars($_SESSION['username'] ?? '') ?></p>
+            <?php else: ?>
+                <p>Please <a href="pages/login.php">login</a> or <a href="pages/register.php">register</a> to continue.</p>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
 
-// Redirect to login if not authenticated
-if (!isset($_SESSION['logged_in']) && $page !== 'login' && $page !== 'register') {
-    header('Location: login.php');
-    exit;
-}
-
-require "pages/$page.php";
-?> 
+<?php include 'includes/footer.php'; ?> 

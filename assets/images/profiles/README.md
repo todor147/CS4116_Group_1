@@ -1,6 +1,6 @@
 # Profile Images Directory
 
-This directory stores user profile images for the EduCoach application.
+This directory stores user profile images for the EduCoach application!
 
 ## Default Image
 
