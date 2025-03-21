@@ -21,7 +21,7 @@ try {
     $error = 'Database error: ' . $e->getMessage();
 }
 
-include __DIR__ . '/../includes/header.php';
+include __DIR__ . '/../includes/admin-header.php';
 ?>
 
 <div class="container mt-5">
@@ -71,8 +71,7 @@ include __DIR__ . '/../includes/header.php';
                 <div class="card-body">
                     <div class="d-grid gap-4">
                         <a href="manage-users.php" class="btn btn-primary">Manage Users</a>
-                        <a href="manage-coaches.php" class="btn btn-success">Manage Coaches</a>
-                        <a href="content-restrictions.php" class="btn btn-info">Content Moderation</a>
+                        <a href="review-moderation.php" class="btn btn-info">Review Moderation</a>
                     </div>
                 </div>
             </div>
