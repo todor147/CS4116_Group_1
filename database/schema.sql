@@ -144,6 +144,12 @@ CREATE TABLE Reviews (
     FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id) ON DELETE CASCADE
 );
 
+-- Create BannedWords table
+CREATE TABLE BannedWords (
+    word_id INT PRIMARY KEY AUTO_INCREMENT,
+    word VARCHAR(255) NOT NULL UNIQUE
+);
+
 -- Create ReviewResponses table
 CREATE TABLE ReviewResponses (
     response_id INT PRIMARY KEY AUTO_INCREMENT,
