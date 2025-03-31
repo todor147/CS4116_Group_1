@@ -170,7 +170,7 @@ INSERT INTO ServiceInquiries (user_id, coach_id, tier_id, status, message, creat
 (10, 5, 12, 'accepted', 'Need to learn JavaScript basics for a project.', DATE_SUB(NOW(), INTERVAL 5 DAY));
 
 -- Create sample sessions
-INSERT INTO Sessions (inquiry_id, learner_id, coach_id, tier_id, scheduled_time, duration, status) VALUES
+INSERT INTO session (inquiry_id, learner_id, coach_id, tier_id, scheduled_time, duration, status) VALUES
 (1, 7, 1, 1, DATE_ADD(NOW(), INTERVAL 2 DAY), 60, 'scheduled'),
 (2, 8, 3, 7, DATE_SUB(NOW(), INTERVAL 10 DAY), 60, 'completed'),
 (4, 10, 5, 12, DATE_ADD(NOW(), INTERVAL 1 DAY), 90, 'scheduled');

@@ -7,6 +7,32 @@ session_start();
 // Include database connection
 require_once __DIR__ . '/../includes/db_connection.php';
 
+// Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
+// Get user type and ID
+$user_id = $_SESSION['user_id'];
+$stmt = $pdo->prepare("SELECT user_type FROM Users WHERE user_id = ?");
+$stmt->execute([$user_id]);
+$user = $stmt->fetch();
+$is_coach = ($user['user_type'] === 'business');
+
+// Check if the user is a student and has booked sessions
+$has_booked_sessions = false;
+if (!$is_coach) {
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) as session_count 
+        FROM session 
+        WHERE learner_id = ? AND status = 'scheduled'
+    ");
+    $stmt->execute([$user_id]);
+    $result = $stmt->fetch();
+    $has_booked_sessions = ($result['session_count'] > 0);
+}
+
 // Get user's upcoming sessions if logged in
 $upcoming_sessions = [];
 if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
@@ -19,7 +45,7 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
             // Get coach's upcoming sessions
             $stmt = $pdo->prepare("
                 SELECT s.*, u.username as learner_name, st.name as tier_name, s.scheduled_time
-                FROM Sessions s
+                FROM session s
                 JOIN Users u ON s.learner_id = u.user_id
                 JOIN ServiceTiers st ON s.tier_id = st.tier_id
                 WHERE s.coach_id = (SELECT coach_id FROM Coaches WHERE user_id = ?) 
@@ -33,7 +59,7 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
             // Get learner's upcoming sessions
             $stmt = $pdo->prepare("
                 SELECT s.*, u.username as coach_name, st.name as tier_name, s.scheduled_time
-                FROM Sessions s
+                FROM session s
                 JOIN Coaches c ON s.coach_id = c.coach_id
                 JOIN Users u ON c.user_id = u.user_id
                 JOIN ServiceTiers st ON s.tier_id = st.tier_id
@@ -46,6 +72,9 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
             $stmt->execute([$user_id]);
         }
         $upcoming_sessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Debug: Log the results
+        error_log("Upcoming sessions: " . print_r($upcoming_sessions, true));
     } catch (PDOException $e) {
         // Log error but continue
         error_log("Error fetching upcoming sessions: " . $e->getMessage());
@@ -139,7 +168,7 @@ include __DIR__ . '/../includes/header.php';
                 </div>
             </div>
             <div class="card-footer bg-white text-center">
-                <a href="sessions.php" class="text-decoration-none">View All Sessions</a>
+                <a href="session.php" class="text-decoration-none">View All Sessions</a>
             </div>
         </div>
     </div>
@@ -162,10 +191,10 @@ include __DIR__ . '/../includes/header.php';
                             <option value="in-person">Around me</option>
                         </select>
                         <button class="btn btn-primary px-4" type="submit">Search</button>
-                </div>
-            </form>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
     </div>
 </section>
 
@@ -440,7 +469,7 @@ include __DIR__ . '/../includes/header.php';
             </div>
             <div class="col-lg-4 text-lg-end">
                 <?php if (isset($_SESSION['logged_in'])): ?>
-                    <a href="search.php" class="btn btn-light btn-lg">Find a Coach</a>
+                    <a href="/CS_4116_group_01/pages/coach-search.php" class="btn btn-light btn-lg">Find a Coach</a>
                 <?php else: ?>
                     <a href="register.php" class="btn btn-light btn-lg me-2">Register Now</a>
                     <a href="login.php" class="btn btn-outline-light btn-lg">Login</a>
@@ -501,5 +530,14 @@ include __DIR__ . '/../includes/header.php';
         box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
     }
 </style> 
+
+<?php if (!$is_coach && $has_booked_sessions): ?>
+<!-- Display a notification if the student has booked sessions -->
+<div class="container mt-4">
+    <div class="alert alert-info" role="alert">
+        You have a session booked! <a href="session.php">View your sessions</a>.
+    </div>
+</div>
+<?php endif; ?>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?> 

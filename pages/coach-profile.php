@@ -397,11 +397,15 @@ include __DIR__ . '/../includes/header.php';
                                             </div>
                                             <div class="card-footer bg-transparent text-center py-3">
                                                 <?php if (isset($_SESSION['logged_in'])): ?>
-                                                    <a href="book.php?coach_id=<?= $coach_id ?>&tier_id=<?= $service['tier_id'] ?>" 
-                                                       class="btn <?= $index === 1 ? 'btn-primary' : 'btn-outline-primary' ?> btn-lg w-100">Book Session</a>
+                                                    <?php
+                                                    // Assuming you have the coach ID and service tier ID available
+                                                    $tier_id = $service['tier_id'];
+                                                    $book_session_url = "http://localhost/CS_4116_group_01/pages/session.php?coach_id=$coach_id&tier_id=$tier_id";
+                                                    ?>
+                                                    <a href="<?= $book_session_url ?>" class="btn btn-primary btn-lg w-100">Book Session</a>
                                                 <?php else: ?>
                                                     <a href="login.php?redirect=coach-profile.php?id=<?= $coach_id ?>" 
-                                                       class="btn <?= $index === 1 ? 'btn-primary' : 'btn-outline-primary' ?> btn-lg w-100">Login to Book</a>
+                                                       class="btn btn-outline-primary btn-lg w-100">Login to Book</a>
                                                 <?php endif; ?>
                                             </div>
                                         </div>
