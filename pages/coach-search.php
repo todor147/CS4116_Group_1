@@ -17,6 +17,47 @@ function getSkillName($pdo, $skill_id) {
 session_start();
 require_once '../includes/db_connection.php';
 
+// Function to calculate relevance score
+function calculateRelevanceScore($coach, $search_query) {
+    $score = 0;
+    $search_terms = explode(' ', strtolower($search_query));
+    
+    foreach ($search_terms as $term) {
+        if (strlen($term) < 2) continue;
+        
+        // Exact username match gets highest score
+        if (stripos($coach['username'], $term) !== false) {
+            $score += 10;
+        }
+        
+        // Headline match
+        if (stripos($coach['headline'], $term) !== false) {
+            $score += 5;
+        }
+        
+        // Bio match
+        if (stripos($coach['bio'], $term) !== false) {
+            $score += 3;
+        }
+        
+        // About me match
+        if (stripos($coach['about_me'], $term) !== false) {
+            $score += 3;
+        }
+        
+        // Skills match
+        if (isset($coach['top_skills'])) {
+            foreach ($coach['top_skills'] as $skill) {
+                if (stripos($skill['skill_name'], $term) !== false) {
+                    $score += 8; // Higher score for matching skills
+                }
+            }
+        }
+    }
+    
+    return $score;
+}
+
 // Check for diagnostic mode
 $diagnostic_mode = isset($_GET['diagnostic']);
 if ($diagnostic_mode) {
@@ -102,8 +143,9 @@ $selected_skills = isset($_GET['skills']) ? (is_array($_GET['skills']) ? $_GET['
 $min_rating = isset($_GET['min_rating']) ? floatval($_GET['min_rating']) : 0;
 // Set max_price to a very high number by default to effectively mean "Any"
 $max_price = isset($_GET['max_price']) && !empty($_GET['max_price']) ? floatval($_GET['max_price']) : 9999999;
+$min_price = isset($_GET['min_price']) && !empty($_GET['min_price']) ? floatval($_GET['min_price']) : 0;
 $search_query = $_GET['query'] ?? '';
-$sort_by = $_GET['sort_by'] ?? 'rating_desc';
+$sort_by = $_GET['sort_by'] ?? 'relevance';
 
 // Get all categories and skills for filter options
 try {
@@ -229,11 +271,19 @@ try {
         $params[] = $min_rating;
     }
     
-    // Filter by maximum price
+    // Filter by price range
+    if ($min_price > 0) {
+        $where_clauses[] = "c.hourly_rate >= ?";
+        $params[] = $min_price;
+    }
+    
     if ($max_price < 9999999) {
         $where_clauses[] = "c.hourly_rate <= ?";
         $params[] = $max_price;
     }
+    
+    // Only show coaches with active status
+    $where_clauses[] = "u.is_banned = 0";
     
     // Add WHERE clause if we have conditions
     if (!empty($where_clauses)) {
@@ -252,8 +302,43 @@ try {
             $sql .= " ORDER BY c.rating ASC";
             break;
         case 'rating_desc':
-        default:
             $sql .= " ORDER BY c.rating DESC";
+            break;
+        case 'relevance':
+        default:
+            if (!empty($search_query)) {
+                // For search, use a relevance score - this is simplified in SQL, we'll refine in PHP
+                $sql .= " ORDER BY (";
+                foreach ($search_terms as $term) {
+                    if (strlen($term) < 2) continue;
+                    
+                    $search_param = "%" . $term . "%";
+                    
+                    // Username matches (highest priority)
+                    $sql .= " CASE WHEN u.username LIKE ? THEN 10 ELSE 0 END +";
+                    $params[] = $search_param;
+                    
+                    // Headline matches (high priority)
+                    $sql .= " CASE WHEN c.headline LIKE ? THEN 5 ELSE 0 END +";
+                    $params[] = $search_param;
+                    
+                    // Skill matches (high priority)
+                    $sql .= " CASE WHEN s_search.skill_name LIKE ? THEN 8 ELSE 0 END +";
+                    $params[] = $search_param;
+                    
+                    // Other text matches (lower priority)
+                    $sql .= " CASE WHEN c.about_me LIKE ? THEN 3 ELSE 0 END +";
+                    $params[] = $search_param;
+                    
+                    $sql .= " CASE WHEN u.bio LIKE ? THEN 3 ELSE 0 END +";
+                    $params[] = $search_param;
+                }
+                // Remove the trailing plus sign and add rating as a secondary sort
+                $sql = rtrim($sql, "+") . ") DESC, c.rating DESC";
+            } else {
+                // Without search, default to rating
+                $sql .= " ORDER BY c.rating DESC";
+            }
             break;
     }
     
@@ -279,6 +364,23 @@ try {
         ");
         $stmt->execute([$coach['coach_id']]);
         $coach['top_skills'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // If we're sorting by relevance and have a search query, calculate a more precise relevance score
+        if ($sort_by == 'relevance' && !empty($search_query)) {
+            $coach['relevance_score'] = calculateRelevanceScore($coach, $search_query);
+        }
+    }
+    
+    // If we calculated relevance scores, sort by them (gives more precise ranking than SQL)
+    if ($sort_by == 'relevance' && !empty($search_query)) {
+        usort($coaches, function($a, $b) {
+            // First compare by relevance score
+            if ($a['relevance_score'] != $b['relevance_score']) {
+                return $b['relevance_score'] - $a['relevance_score']; // Descending
+            }
+            // If tied, compare by rating
+            return $b['rating'] <=> $a['rating']; // Descending
+        });
     }
     
 } catch (PDOException $e) {
@@ -367,6 +469,27 @@ include '../includes/header.php';
                             </div>
                         </div>
                         
+                        <!-- Price Range Filter -->
+                        <div class="mb-3">
+                            <label class="form-label">Price Range ($/hour)</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" name="min_price" 
+                                               value="<?= $min_price > 0 ? $min_price : '' ?>" placeholder="Min" min="0">
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" name="max_price" 
+                                               value="<?= $max_price < 9999999 ? $max_price : '' ?>" placeholder="Max" min="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Rating Filter -->
                         <div class="mb-3">
                             <label for="min_rating" class="form-label">Minimum Rating</label>
@@ -378,22 +501,11 @@ include '../includes/header.php';
                             </select>
                         </div>
                         
-                        <!-- Price Filter -->
-                        <div class="mb-3">
-                            <label for="max_price" class="form-label">Maximum Hourly Rate</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" class="form-control" id="max_price" name="max_price" 
-                                       value="<?= ($max_price < 9999999) ? $max_price : '' ?>" 
-                                       placeholder="Any price" min="0" step="5">
-                            </div>
-                            <small class="form-text text-muted">Leave empty for any price</small>
-                        </div>
-                        
                         <!-- Sort By -->
                         <div class="mb-3">
                             <label for="sort_by" class="form-label">Sort By</label>
                             <select class="form-select" id="sort_by" name="sort_by">
+                                <option value="relevance" <?= $sort_by == 'relevance' ? 'selected' : '' ?>>Most Relevant</option>
                                 <option value="rating_desc" <?= $sort_by == 'rating_desc' ? 'selected' : '' ?>>Highest Rating</option>
                                 <option value="rating_asc" <?= $sort_by == 'rating_asc' ? 'selected' : '' ?>>Lowest Rating</option>
                                 <option value="price_asc" <?= $sort_by == 'price_asc' ? 'selected' : '' ?>>Price: Low to High</option>
@@ -406,7 +518,7 @@ include '../includes/header.php';
                                 <i class="bi bi-search"></i> Search
                             </button>
                             <a href="coach-search.php" class="btn btn-outline-secondary">
-                                <i class="bi bi-x-circle"></i> Clear Filters
+                                <i class="bi bi-x-circle"></i> Clear All Filters
                             </a>
                         </div>
                     </form>
@@ -448,6 +560,9 @@ include '../includes/header.php';
                                         <?php endif; ?>
                                         <?php if ($min_rating > 0): ?>
                                             <li>Minimum rating: <?= htmlspecialchars($min_rating) ?></li>
+                                        <?php endif; ?>
+                                        <?php if ($min_price > 0): ?>
+                                            <li>Minimum price: $<?= htmlspecialchars($min_price) ?></li>
                                         <?php endif; ?>
                                         <?php if ($max_price < 9999999): ?>
                                             <li>Maximum price: $<?= htmlspecialchars($max_price) ?></li>
@@ -544,6 +659,13 @@ include '../includes/header.php';
                                                 </div>
                                             <?php endif; ?>
                                             
+                                            <!-- Debug: Relevance score for search results -->
+                                            <?php if (isset($_GET['debug']) && isset($coach['relevance_score'])): ?>
+                                                <div class="small text-muted">
+                                                    Relevance score: <?= $coach['relevance_score'] ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            
                                             <a href="coach-profile.php?id=<?= $coach['coach_id'] ?>" class="btn btn-sm btn-outline-primary mt-2">
                                                 View Profile
                                             </a>
@@ -557,10 +679,6 @@ include '../includes/header.php';
             </div>
         </div>
     </div>
-</div>
-
-<div class="d-grid gap-2 mt-3">
-    <a href="coach-search.php" class="btn btn-outline-secondary">Back to All Coaches</a>
 </div>
 
 <!-- JavaScript for search functionality -->

@@ -183,9 +183,9 @@ include __DIR__ . '/../includes/header.php';
                 <h1 class="display-4 fw-bold mb-3">Find the <span class="text-primary">perfect coach</span></h1>
                 <h2 class="h4 text-muted mb-5">Online or face to face, make your choice from thousands of expert coaches</h2>
                 
-                <form action="search.php" method="get" class="mb-4">
+                <form action="coach-search.php" method="get" class="mb-4">
                     <div class="input-group input-group-lg">
-                        <input type="text" class="form-control" name="q" placeholder="Maths, Guitar, Spanish, Yoga..." aria-label="Search for a subject">
+                        <input type="text" class="form-control" name="query" placeholder="Maths, Guitar, Spanish, Yoga..." aria-label="Search for a subject">
                         <select class="form-select" name="location" style="max-width: 150px;">
                             <option value="online">Online</option>
                             <option value="in-person">Around me</option>
@@ -216,7 +216,7 @@ include __DIR__ . '/../includes/header.php';
                     if ($index < 12) {
             ?>
                 <div class="col-6 col-md-4 col-lg-2">
-                    <a href="search.php?q=<?= urlencode($subject) ?>" class="text-decoration-none">
+                    <a href="coach-search.php?query=<?= urlencode($subject) ?>" class="text-decoration-none">
                         <div class="card h-100 border-0 text-center shadow-sm hover-card">
                             <div class="card-body">
                                 <div class="mb-3">
@@ -235,7 +235,7 @@ include __DIR__ . '/../includes/header.php';
                 foreach ($popular_categories as $category) {
             ?>
                 <div class="col-6 col-md-4 col-lg-2">
-                    <a href="search.php?category=<?= urlencode($category['category_id']) ?>" class="text-decoration-none">
+                    <a href="coach-search.php?category=<?= urlencode($category['category_id']) ?>" class="text-decoration-none">
                         <div class="card h-100 border-0 text-center shadow-sm hover-card">
                             <div class="card-body">
                                 <div class="mb-3">
@@ -469,7 +469,7 @@ include __DIR__ . '/../includes/header.php';
             </div>
             <div class="col-lg-4 text-lg-end">
                 <?php if (isset($_SESSION['logged_in'])): ?>
-                    <a href="/CS_4116_group_01/pages/coach-search.php" class="btn btn-light btn-lg">Find a Coach</a>
+                    <a href="coach-search.php" class="btn btn-light btn-lg">Find a Coach</a>
                 <?php else: ?>
                     <a href="register.php" class="btn btn-light btn-lg me-2">Register Now</a>
                     <a href="login.php" class="btn btn-outline-light btn-lg">Login</a>

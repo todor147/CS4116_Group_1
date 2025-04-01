@@ -146,6 +146,15 @@ include __DIR__ . '/../includes/header.php';
                                 </div>
                             </div>
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Advanced Analytics Dashboard</h5>
+                                    <p class="card-text">Access comprehensive performance metrics, charts, and insights for your coaching business.</p>
+                                    <a href="analytics/dashboard.php" class="btn btn-primary">Open Dashboard</a>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
