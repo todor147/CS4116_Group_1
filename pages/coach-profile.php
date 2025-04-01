@@ -170,7 +170,7 @@ include __DIR__ . '/../includes/header.php';
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="home.php">Home</a></li>
-            <li class="breadcrumb-item"><a href="search.php">Coaches</a></li>
+            <li class="breadcrumb-item"><a href="coach-search.php">Coaches</a></li>
             <li class="breadcrumb-item active" aria-current="page">
                 <?= $coach ? htmlspecialchars($coach['username']) : 'Coach Profile' ?>
             </li>
@@ -180,7 +180,7 @@ include __DIR__ . '/../includes/header.php';
     <?php if ($error_message): ?>
         <div class="alert alert-danger">
             <?= htmlspecialchars($error_message) ?>
-            <p class="mt-3"><a href="search.php" class="btn btn-primary">Back to Search</a></p>
+            <p class="mt-3"><a href="coach-search.php" class="btn btn-primary">Back to Search</a></p>
         </div>
     <?php elseif ($coach): ?>
         <div class="row">
@@ -257,9 +257,10 @@ include __DIR__ . '/../includes/header.php';
                                     <li class="list-group-item">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
-                                                <strong><?= date('l, F j', strtotime($slot['available_time'])) ?></strong>
+                                                <strong><?= htmlspecialchars($slot['day_of_week']) ?></strong>
                                                 <span class="text-muted ms-2">
-                                                    <?= date('g:i A', strtotime($slot['available_time'])) ?>
+                                                    <?= date('g:i A', strtotime($slot['start_time'])) ?> - 
+                                                    <?= date('g:i A', strtotime($slot['end_time'])) ?>
                                                 </span>
                                             </div>
                                             <span class="badge bg-success">Available</span>
@@ -400,7 +401,7 @@ include __DIR__ . '/../includes/header.php';
                                                     <?php
                                                     // Assuming you have the coach ID and service tier ID available
                                                     $tier_id = $service['tier_id'];
-                                                    $book_session_url = "http://localhost/CS_4116_group_01/pages/session.php?coach_id=$coach_id&tier_id=$tier_id";
+                                                    $book_session_url = "session.php?coach_id=$coach_id&tier_id=$tier_id";
                                                     ?>
                                                     <a href="<?= $book_session_url ?>" class="btn btn-primary btn-lg w-100">Book Session</a>
                                                 <?php else: ?>

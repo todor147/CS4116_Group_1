@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     // First verify the session exists and get its details
                     $stmt = $pdo->prepare("
                         SELECT s.*, c.user_id as coach_user_id, u.username as learner_name, u2.username as coach_name
-                        FROM session s 
+                        FROM sessions s 
                         JOIN Coaches c ON s.coach_id = c.coach_id
                         JOIN Users u ON s.learner_id = u.user_id
                         JOIN Users u2 ON c.user_id = u2.user_id
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                     
                     // Update session status
-                    $stmt = $pdo->prepare("UPDATE session SET status = ? WHERE session_id = ?");
+                    $stmt = $pdo->prepare("UPDATE sessions SET status = ? WHERE session_id = ?");
                     if (!$stmt->execute([$_POST['status'], $_POST['session_id']])) {
                         throw new Exception('Failed to update session status');
                     }
@@ -145,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         // Check for existing sessions within 1 hour
                         $stmt = $pdo->prepare("
                             SELECT COUNT(*) as session_count 
-                            FROM session 
+                            FROM sessions 
                             WHERE coach_id = ? 
                             AND scheduled_time BETWEEN DATE_SUB(?, INTERVAL 1 HOUR) AND DATE_ADD(?, INTERVAL 1 HOUR)
                         ");
@@ -174,7 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         error_log("Creating session for inquiry ID: $inquiry_id, user ID: $user_id, coach ID: {$_POST['coach_id']}, time: {$_POST['scheduled_time']}");
                         
                         // Create the session
-                        $stmt = $pdo->prepare("INSERT INTO session (inquiry_id, learner_id, coach_id, tier_id, scheduled_time, status) VALUES (?, ?, ?, ?, ?, 'scheduled')");
+                        $stmt = $pdo->prepare("INSERT INTO sessions (inquiry_id, learner_id, coach_id, tier_id, scheduled_time, status) VALUES (?, ?, ?, ?, ?, 'scheduled')");
                         if (!$stmt->execute([$inquiry_id, $user_id, $_POST['coach_id'], $_POST['tier_id'], $_POST['scheduled_time']])) {
                             throw new Exception('Failed to create session');
                         }
@@ -247,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     
                     // Create session
                     $stmt = $pdo->prepare("
-                        INSERT INTO session 
+                        INSERT INTO sessions 
                         (inquiry_id, learner_id, coach_id, scheduled_time, status) 
                         VALUES (?, ?, ?, ?, 'scheduled')
                     ");
@@ -296,12 +296,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 // Get user's sessions
 $query = $is_coach 
     ? "SELECT s.*, u.username as learner_name, st.name as tier_name, st.price 
-       FROM session s 
+       FROM sessions s 
        JOIN Users u ON s.learner_id = u.user_id 
        JOIN ServiceTiers st ON s.tier_id = st.tier_id 
        WHERE s.coach_id = ?"
     : "SELECT s.*, u.username as coach_name, st.name as tier_name, st.price 
-       FROM session s 
+       FROM sessions s 
        JOIN Coaches c ON s.coach_id = c.coach_id 
        JOIN Users u ON c.user_id = u.user_id 
        JOIN ServiceTiers st ON s.tier_id = st.tier_id 
