@@ -182,6 +182,4 @@
     </nav>
 
     <?php
-    // Remove the problematic code that assumes $user is defined
-    // Session variables are already set in auth_functions.php when the user logs in
     ?> 

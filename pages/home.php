@@ -25,7 +25,7 @@ $has_booked_sessions = false;
 if (!$is_coach) {
     $stmt = $pdo->prepare("
         SELECT COUNT(*) as session_count 
-        FROM session 
+        FROM session
         WHERE learner_id = ? AND status = 'scheduled'
     ");
     $stmt->execute([$user_id]);
@@ -45,7 +45,7 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
             // Get coach's upcoming sessions
             $stmt = $pdo->prepare("
                 SELECT s.*, u.username as learner_name, st.name as tier_name, s.scheduled_time
-                FROM session s
+                FROM session 
                 JOIN Users u ON s.learner_id = u.user_id
                 JOIN ServiceTiers st ON s.tier_id = st.tier_id
                 WHERE s.coach_id = (SELECT coach_id FROM Coaches WHERE user_id = ?) 
@@ -59,7 +59,7 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
             // Get learner's upcoming sessions
             $stmt = $pdo->prepare("
                 SELECT s.*, u.username as coach_name, st.name as tier_name, s.scheduled_time
-                FROM session s
+                FROM session 
                 JOIN Coaches c ON s.coach_id = c.coach_id
                 JOIN Users u ON c.user_id = u.user_id
                 JOIN ServiceTiers st ON s.tier_id = st.tier_id

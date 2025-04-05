@@ -257,9 +257,10 @@ include __DIR__ . '/../includes/header.php';
                                     <li class="list-group-item">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
-                                                <strong><?= date('l, F j', strtotime($slot['available_time'])) ?></strong>
+                                                <strong><?= htmlspecialchars($slot['day_of_week']) ?></strong>
                                                 <span class="text-muted ms-2">
-                                                    <?= date('g:i A', strtotime($slot['available_time'])) ?>
+                                                    <?= date('g:i A', strtotime($slot['start_time'])) ?> - 
+                                                    <?= date('g:i A', strtotime($slot['end_time'])) ?>
                                                 </span>
                                             </div>
                                             <span class="badge bg-success">Available</span>

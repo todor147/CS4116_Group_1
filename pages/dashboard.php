@@ -52,8 +52,8 @@ try {
             // Get upcoming sessions
             $stmt = $pdo->prepare("
                 SELECT s.*, u.username as learner_name, st.name as tier_name
-                FROM Sessions s
-                JOIN Users u ON s.learner_id = u.user_id
+                FROM session s
+                JOIN users u ON s.user_id = u.user_id
                 JOIN ServiceTiers st ON s.tier_id = st.tier_id
                 WHERE s.coach_id = ? AND s.status = 'scheduled'
                 ORDER BY s.scheduled_time ASC
@@ -85,7 +85,7 @@ try {
         // Get upcoming sessions
         $stmt = $pdo->prepare("
             SELECT s.*, u.username as coach_name, st.name as tier_name
-            FROM Sessions s
+            FROM session s
             JOIN Coaches c ON s.coach_id = c.coach_id
             JOIN Users u ON c.user_id = u.user_id
             JOIN ServiceTiers st ON s.tier_id = st.tier_id
