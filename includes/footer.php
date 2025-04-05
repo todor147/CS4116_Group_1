@@ -18,11 +18,20 @@
                 <div class="col-lg-3 col-md-6 mb-4 mb-lg-0">
                     <h5 class="text-uppercase mb-4">For Learners</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-2"><a href="search.php" class="text-white text-decoration-none">Find a Coach</a></li>
-                        <li class="mb-2"><a href="categories.php" class="text-white text-decoration-none">Browse Categories</a></li>
-                        <li class="mb-2"><a href="how-it-works.php" class="text-white text-decoration-none">How It Works</a></li>
-                        <li class="mb-2"><a href="pricing.php" class="text-white text-decoration-none">Pricing</a></li>
-                        <li><a href="faq.php" class="text-white text-decoration-none">FAQ</a></li>
+                        <?php
+                        // Check if we're in the pages directory and adjust paths accordingly
+                        $prefix = '';
+                        if (strpos($_SERVER['SCRIPT_NAME'] ?? '', '/pages/') !== false) {
+                            $prefix = '';
+                        } else {
+                            $prefix = 'pages/';
+                        }
+                        ?>
+                        <li class="mb-2"><a href="<?= $prefix ?>coach-search.php" class="text-white text-decoration-none">Find a Coach</a></li>
+                        <li class="mb-2"><a href="<?= $prefix ?>coach-search.php" class="text-white text-decoration-none">Browse Categories</a></li>
+                        <li class="mb-2"><a href="<?= $prefix ?>how-it-works.php" class="text-white text-decoration-none">How It Works</a></li>
+                        <li class="mb-2"><a href="<?= $prefix ?>pricing.php" class="text-white text-decoration-none">Pricing</a></li>
+                        <li><a href="<?= $prefix ?>faq.php" class="text-white text-decoration-none">FAQ</a></li>
                     </ul>
                 </div>
                 
@@ -30,11 +39,11 @@
                 <div class="col-lg-3 col-md-6 mb-4 mb-lg-0">
                     <h5 class="text-uppercase mb-4">For Coaches</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-2"><a href="become-coach.php" class="text-white text-decoration-none">Become a Coach</a></li>
-                        <li class="mb-2"><a href="coach-resources.php" class="text-white text-decoration-none">Coach Resources</a></li>
-                        <li class="mb-2"><a href="success-stories.php" class="text-white text-decoration-none">Success Stories</a></li>
-                        <li class="mb-2"><a href="coach-faq.php" class="text-white text-decoration-none">Coach FAQ</a></li>
-                        <li><a href="community.php" class="text-white text-decoration-none">Coach Community</a></li>
+                        <li class="mb-2"><a href="<?= $prefix ?>become-coach.php" class="text-white text-decoration-none">Become a Coach</a></li>
+                        <li class="mb-2"><a href="<?= $prefix ?>coach-resources.php" class="text-white text-decoration-none">Coach Resources</a></li>
+                        <li class="mb-2"><a href="<?= $prefix ?>success-stories.php" class="text-white text-decoration-none">Success Stories</a></li>
+                        <li class="mb-2"><a href="<?= $prefix ?>coach-faq.php" class="text-white text-decoration-none">Coach FAQ</a></li>
+                        <li><a href="<?= $prefix ?>community.php" class="text-white text-decoration-none">Coach Community</a></li>
                     </ul>
                 </div>
                 
@@ -42,11 +51,11 @@
                 <div class="col-lg-3 col-md-6 mb-4 mb-lg-0">
                     <h5 class="text-uppercase mb-4">Support</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-2"><a href="help.php" class="text-white text-decoration-none">Help Center</a></li>
-                        <li class="mb-2"><a href="contact.php" class="text-white text-decoration-none">Contact Us</a></li>
-                        <li class="mb-2"><a href="privacy.php" class="text-white text-decoration-none">Privacy Policy</a></li>
-                        <li class="mb-2"><a href="terms.php" class="text-white text-decoration-none">Terms of Service</a></li>
-                        <li><a href="about.php" class="text-white text-decoration-none">About Us</a></li>
+                        <li class="mb-2"><a href="<?= $prefix ?>help.php" class="text-white text-decoration-none">Help Center</a></li>
+                        <li class="mb-2"><a href="<?= $prefix ?>contact.php" class="text-white text-decoration-none">Contact Us</a></li>
+                        <li class="mb-2"><a href="<?= $prefix ?>privacy.php" class="text-white text-decoration-none">Privacy Policy</a></li>
+                        <li class="mb-2"><a href="<?= $prefix ?>terms.php" class="text-white text-decoration-none">Terms of Service</a></li>
+                        <li><a href="<?= $prefix ?>about.php" class="text-white text-decoration-none">About Us</a></li>
                     </ul>
                 </div>
             </div>

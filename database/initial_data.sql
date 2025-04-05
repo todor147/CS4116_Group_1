@@ -163,14 +163,14 @@ INSERT INTO ServiceTiers (coach_id, name, description, price) VALUES
 (5, 'Full-Stack Project', 'Comprehensive project-based learning for full-stack development', 75.00);
 
 -- Create sample service inquiries
-INSERT INTO ServiceInquiries (user_id, coach_id, tier_id, status, message, created_at) VALUES
+INSERT INTO serviceinquiries (user_id, coach_id, tier_id, status, message, created_at) VALUES
 (7, 1, 1, 'accepted', 'I need help with calculus for my upcoming exam.', DATE_SUB(NOW(), INTERVAL 7 DAY)),
 (8, 3, 7, 'completed', 'Looking for help with my physics homework.', DATE_SUB(NOW(), INTERVAL 14 DAY)),
 (9, 2, 4, 'pending', 'I want to improve my Spanish conversation skills.', DATE_SUB(NOW(), INTERVAL 2 DAY)),
 (10, 5, 12, 'accepted', 'Need to learn JavaScript basics for a project.', DATE_SUB(NOW(), INTERVAL 5 DAY));
 
 -- Create sample sessions
-INSERT INTO session (inquiry_id, learner_id, coach_id, tier_id, scheduled_time, duration, status) VALUES
+INSERT INTO sessions (inquiry_id, learner_id, coach_id, tier_id, scheduled_time, duration, status) VALUES
 (1, 7, 1, 1, DATE_ADD(NOW(), INTERVAL 2 DAY), 60, 'scheduled'),
 (2, 8, 3, 7, DATE_SUB(NOW(), INTERVAL 10 DAY), 60, 'completed'),
 (4, 10, 5, 12, DATE_ADD(NOW(), INTERVAL 1 DAY), 90, 'scheduled');

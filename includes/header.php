@@ -98,16 +98,22 @@
                         <a class="nav-link <?= $current_page === 'coach-search.php' ? 'active' : '' ?>" href="coach-search.php">Find Coaches</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="search.php?sort=rating">Highest Rated</a>
+                        <a class="nav-link" href="coach-search.php?sort_by=rating_desc">Highest Rated</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="search.php?category=sports">Sports</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="search.php?category=education">Education</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="search.php?category=music">Music</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Categories
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                            <li><a class="dropdown-item" href="coach-search.php?category=1">Mathematics</a></li>
+                            <li><a class="dropdown-item" href="coach-search.php?category=2">Languages</a></li>
+                            <li><a class="dropdown-item" href="coach-search.php?category=3">Sciences</a></li>
+                            <li><a class="dropdown-item" href="coach-search.php?category=4">Arts</a></li>
+                            <li><a class="dropdown-item" href="coach-search.php?category=5">Computer Science</a></li>
+                            <li><a class="dropdown-item" href="coach-search.php?category=6">Test Preparation</a></li>
+                            <li><a class="dropdown-item" href="coach-search.php?category=7">Business</a></li>
+                            <li><a class="dropdown-item" href="coach-search.php?category=8">Humanities</a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="help.php">Help Center</a>

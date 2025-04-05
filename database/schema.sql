@@ -10,8 +10,8 @@ DROP TABLE IF EXISTS Reviews;
 DROP TABLE IF EXISTS CustomerInsightMessages;
 DROP TABLE IF EXISTS CustomerInsightRequests;
 DROP TABLE IF EXISTS Messages;
-DROP TABLE IF EXISTS session;
-DROP TABLE IF EXISTS ServiceInquiries;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS serviceinquiries;
 DROP TABLE IF EXISTS ServiceTiers;
 DROP TABLE IF EXISTS Coach_Availability;
 DROP TABLE IF EXISTS Coach_Skills;
@@ -107,8 +107,8 @@ CREATE TABLE ServiceTiers (
     FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id) ON DELETE CASCADE
 );
 
--- Create ServiceInquiries table
-CREATE TABLE ServiceInquiries (
+-- Create serviceinquiries table (lowercase to match existing)
+CREATE TABLE serviceinquiries (
     inquiry_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT,
     coach_id INT,
@@ -121,8 +121,8 @@ CREATE TABLE ServiceInquiries (
     FOREIGN KEY (tier_id) REFERENCES ServiceTiers(tier_id) ON DELETE SET NULL
 );
 
--- Create session table (renamed from Sessions)
-CREATE TABLE session (
+-- Create sessions table (plural instead of singular)
+CREATE TABLE sessions (
     session_id INT PRIMARY KEY AUTO_INCREMENT,
     inquiry_id INT,
     learner_id INT,
@@ -131,7 +131,7 @@ CREATE TABLE session (
     scheduled_time DATETIME,
     duration INT, -- in minutes
     status ENUM('scheduled', 'completed', 'cancelled'),
-    FOREIGN KEY (inquiry_id) REFERENCES ServiceInquiries(inquiry_id) ON DELETE SET NULL,
+    FOREIGN KEY (inquiry_id) REFERENCES serviceinquiries(inquiry_id) ON DELETE SET NULL,
     FOREIGN KEY (learner_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id) ON DELETE CASCADE,
     FOREIGN KEY (tier_id) REFERENCES ServiceTiers(tier_id) ON DELETE SET NULL
@@ -146,7 +146,7 @@ CREATE TABLE Reviews (
     rating TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
     comment TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (session_id) REFERENCES session(session_id) ON DELETE CASCADE,
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id) ON DELETE CASCADE
 );
@@ -180,7 +180,7 @@ CREATE TABLE Messages (
     is_read BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (sender_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (receiver_id) REFERENCES Users(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (inquiry_id) REFERENCES ServiceInquiries(inquiry_id) ON DELETE CASCADE
+    FOREIGN KEY (inquiry_id) REFERENCES serviceinquiries(inquiry_id) ON DELETE CASCADE
 );
 
 -- Create CustomerInsightRequests table
@@ -229,9 +229,9 @@ CREATE TABLE CoachCategories (
 
 -- Indexes for better performance
 CREATE INDEX idx_users_email ON Users(email);
-CREATE INDEX idx_sessions_status ON session(status);
+CREATE INDEX idx_sessions_status ON sessions(status);
 CREATE INDEX idx_reviews_rating ON Reviews(rating);
 CREATE INDEX idx_coach_skills ON Coach_Skills(coach_id, skill_id);
 CREATE INDEX idx_coach_availability ON Coach_Availability(coach_id, day_of_week);
 
-SHOW CREATE TABLE session;
+SHOW CREATE TABLE sessions;
