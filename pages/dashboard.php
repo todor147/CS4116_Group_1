@@ -288,7 +288,7 @@ include __DIR__ . '/../includes/header.php';
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
-                        <a href="inquiries.php" class="btn btn-outline-primary">View All Inquiries</a>
+                        <a href="insight-requests.php" class="btn btn-outline-primary">View All Inquiries</a>
                     <?php else: ?>
                         <p>No inquiries found.</p>
                         <?php if (!$is_coach): ?>
@@ -323,13 +323,13 @@ include __DIR__ . '/../includes/header.php';
                                     <td><?= htmlspecialchars($session['tier_name']) ?></td>
                                     <td><?= $session['duration'] ?> min</td>
                                     <td>
-                                        <a href="session-details.php?id=<?= $session['session_id'] ?>" class="btn btn-sm btn-outline-primary">View</a>
+                                        <a href="view-session.php?id=<?= $session['session_id'] ?>" class="btn btn-sm btn-outline-primary">View</a>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
-                        <a href="sessions.php" class="btn btn-outline-primary">View All Sessions</a>
+                        <a href="session.php" class="btn btn-outline-primary">View All Sessions</a>
                     <?php else: ?>
                         <p>No upcoming sessions found.</p>
                     <?php endif; ?>

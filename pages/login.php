@@ -31,7 +31,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = authenticateUser($pdo, $email, $password);
         
         if ($user) {
-            startUserSession($user);
+            // Set session variables
+            $_SESSION['logged_in'] = true;
+            $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['email'] = $user['email'];
+            $_SESSION['user_type'] = $user['user_type'];
+            $_SESSION['profile_image'] = $user['profile_image'];
+            
+            // Check if the user is a coach
+            try {
+                $stmt = $pdo->prepare("SELECT coach_id FROM Coaches WHERE user_id = ?");
+                $stmt->execute([$user['user_id']]);
+                $coach = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($coach) {
+                    $_SESSION['coach_id'] = $coach['coach_id'];
+                }
+            } catch (PDOException $e) {
+                // Silent fail - not critical
+            }
+            
+            // Check if there is a redirect URL
+            if (isset($_GET['redirect']) && !empty($_GET['redirect'])) {
+                $redirect = urldecode($_GET['redirect']);
+                // Validate the URL to prevent open redirect vulnerabilities
+                // Only allow internal redirects
+                if (strpos($redirect, '/') === 0 || strpos($redirect, 'pages/') === 0) {
+                    header('Location: ' . $redirect);
+                    exit;
+                }
+            }
+            
+            // Default redirect
             header('Location: dashboard.php');
             exit;
         } else {

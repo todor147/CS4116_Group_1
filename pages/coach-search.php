@@ -17,6 +17,8 @@ function getSkillName($pdo, $skill_id) {
 session_start();
 require_once '../includes/db_connection.php';
 
+// No login check - allow everyone to search
+
 // Function to calculate relevance score
 function calculateRelevanceScore($coach, $search_query) {
     $score = 0;
@@ -87,7 +89,7 @@ if ($diagnostic_mode) {
             echo '<p>Sample coach: ' . htmlspecialchars($sample_coach['username']) . 
                  ' (ID: ' . $sample_coach['coach_id'] . 
                  ', Rating: ' . $sample_coach['rating'] . 
-                 ', Hourly Rate: $' . $sample_coach['hourly_rate'] . ')</p>';
+                 ', Hourly Rate: €' . $sample_coach['hourly_rate'] . ')</p>';
             
             // Check for skills
             $stmt = $pdo->prepare('SELECT COUNT(*) FROM Coach_Skills');
@@ -147,13 +149,50 @@ $min_price = isset($_GET['min_price']) && !empty($_GET['min_price']) ? floatval(
 $search_query = $_GET['query'] ?? '';
 $sort_by = $_GET['sort_by'] ?? 'relevance';
 
-// Get all categories and skills for filter options
+// Smart filtering - Auto-detect categories and skills in search query
+$auto_detected_categories = [];
+$auto_detected_skills = [];
+
+// Get all categories and skills for filter options and auto-detection
 try {
     $stmt = $pdo->query("SELECT * FROM Expertise_Categories ORDER BY category_name");
     $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $stmt = $pdo->query("SELECT s.*, ec.category_name FROM Skills s JOIN Expertise_Categories ec ON s.category_id = ec.category_id ORDER BY ec.category_name, s.skill_name");
     $skills = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Auto-detect categories and skills in search query if not empty
+    if (!empty($search_query)) {
+        $search_terms = preg_split('/\s+/', strtolower(trim($search_query)));
+        
+        // Check if search query exactly matches a category name
+        foreach ($categories as $category) {
+            $category_name = strtolower($category['category_name']);
+            // Check for exact match or if search query contains the category name
+            if ($category_name === strtolower($search_query) || 
+                in_array($category_name, $search_terms)) {
+                $auto_detected_categories[] = $category['category_id'];
+                // If exact match and no category selected yet, auto-select it
+                if (empty($selected_category) && $category_name === strtolower($search_query)) {
+                    $selected_category = $category['category_id'];
+                }
+            }
+        }
+        
+        // Check if search query matches a skill name
+        foreach ($skills as $skill) {
+            $skill_name = strtolower($skill['skill_name']);
+            // Check for exact match or if search query contains the skill name
+            if ($skill_name === strtolower($search_query) || 
+                in_array($skill_name, $search_terms)) {
+                $auto_detected_skills[] = $skill['skill_id'];
+                // Auto-select the skill if it's not already selected
+                if (!in_array($skill['skill_id'], $selected_skills)) {
+                    $selected_skills[] = $skill['skill_id'];
+                }
+            }
+        }
+    }
     
     // Get common search terms for suggestions
     $popular_searches = [];
@@ -186,7 +225,7 @@ try {
 try {
     $params = [];
     $sql = "
-        SELECT DISTINCT c.*, u.username, u.profile_image, u.bio
+        SELECT c.*, u.username, u.profile_image, u.bio
         FROM Coaches c
         JOIN Users u ON c.user_id = u.user_id
     ";
@@ -290,56 +329,40 @@ try {
         $sql .= " WHERE " . implode(" AND ", $where_clauses);
     }
     
-    // Add sorting
-    switch ($sort_by) {
-        case 'price_asc':
-            $sql .= " ORDER BY c.hourly_rate ASC";
-            break;
-        case 'price_desc':
-            $sql .= " ORDER BY c.hourly_rate DESC";
-            break;
-        case 'rating_asc':
-            $sql .= " ORDER BY c.rating ASC";
-            break;
-        case 'rating_desc':
-            $sql .= " ORDER BY c.rating DESC";
-            break;
-        case 'relevance':
-        default:
-            if (!empty($search_query)) {
-                // For search, use a relevance score - this is simplified in SQL, we'll refine in PHP
-                $sql .= " ORDER BY (";
-                foreach ($search_terms as $term) {
-                    if (strlen($term) < 2) continue;
-                    
-                    $search_param = "%" . $term . "%";
-                    
-                    // Username matches (highest priority)
-                    $sql .= " CASE WHEN u.username LIKE ? THEN 10 ELSE 0 END +";
-                    $params[] = $search_param;
-                    
-                    // Headline matches (high priority)
-                    $sql .= " CASE WHEN c.headline LIKE ? THEN 5 ELSE 0 END +";
-                    $params[] = $search_param;
-                    
-                    // Skill matches (high priority)
-                    $sql .= " CASE WHEN s_search.skill_name LIKE ? THEN 8 ELSE 0 END +";
-                    $params[] = $search_param;
-                    
-                    // Other text matches (lower priority)
-                    $sql .= " CASE WHEN c.about_me LIKE ? THEN 3 ELSE 0 END +";
-                    $params[] = $search_param;
-                    
-                    $sql .= " CASE WHEN u.bio LIKE ? THEN 3 ELSE 0 END +";
-                    $params[] = $search_param;
-                }
-                // Remove the trailing plus sign and add rating as a secondary sort
-                $sql = rtrim($sql, "+") . ") DESC, c.rating DESC";
+    // If search query is provided, also match against custom_category field
+    if (!empty($search_query)) {
+        $search_terms = explode(' ', strtolower(trim($search_query)));
+        
+        // Additional check for custom categories
+        $custom_category_clauses = [];
+        foreach ($search_terms as $term) {
+            if (strlen($term) < 2) continue;
+            $custom_category_clauses[] = "LOWER(c.custom_category) LIKE ?";
+            $params[] = "%" . strtolower($term) . "%";
+        }
+        
+        if (!empty($custom_category_clauses)) {
+            if (!empty($where_clauses)) {
+                $sql .= " OR ((" . implode(" OR ", $custom_category_clauses) . ") AND c.custom_category IS NOT NULL)";
             } else {
-                // Without search, default to rating
-                $sql .= " ORDER BY c.rating DESC";
+                $sql .= " WHERE ((" . implode(" OR ", $custom_category_clauses) . ") AND c.custom_category IS NOT NULL)";
             }
-            break;
+        }
+    }
+    
+    // Add GROUP BY to prevent duplicates
+    $sql .= " GROUP BY c.coach_id";
+    
+    // Add ordering
+    if ($sort_by === 'price_asc') {
+        $sql .= " ORDER BY c.hourly_rate ASC";
+    } elseif ($sort_by === 'price_desc') {
+        $sql .= " ORDER BY c.hourly_rate DESC";
+    } elseif ($sort_by === 'rating_desc') {
+        $sql .= " ORDER BY c.rating DESC";
+    } else {
+        // Default to relevance, which we'll calculate in PHP
+        $sql .= " ORDER BY c.rating DESC"; // Fallback server-side sort
     }
     
     // Add debug output
@@ -370,6 +393,13 @@ try {
             $coach['relevance_score'] = calculateRelevanceScore($coach, $search_query);
         }
     }
+    
+    // Ensure no duplicate coaches by using coach_id as key
+    $unique_coaches = [];
+    foreach ($coaches as $coach) {
+        $unique_coaches[$coach['coach_id']] = $coach;
+    }
+    $coaches = array_values($unique_coaches);
     
     // If we calculated relevance scores, sort by them (gives more precise ranking than SQL)
     if ($sort_by == 'relevance' && !empty($search_query)) {
@@ -415,6 +445,38 @@ include '../includes/header.php';
                             <?php if (!empty($search_query)): ?>
                                 <div class="mt-2">
                                     <small class="text-muted">Showing results for: <strong><?= htmlspecialchars($search_query) ?></strong></small>
+                                    <?php if (!empty($auto_detected_categories) || !empty($auto_detected_skills)): ?>
+                                        <div class="mt-1">
+                                            <small class="text-success">
+                                                <i class="bi bi-magic"></i> Automatically applied:
+                                                <?php 
+                                                $applied_filters = [];
+                                                
+                                                // Show auto-detected categories
+                                                foreach ($auto_detected_categories as $cat_id) {
+                                                    foreach ($categories as $category) {
+                                                        if ($category['category_id'] == $cat_id) {
+                                                            $applied_filters[] = 'Category: ' . htmlspecialchars($category['category_name']);
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                // Show auto-detected skills
+                                                foreach ($auto_detected_skills as $skill_id) {
+                                                    foreach ($skills as $skill) {
+                                                        if ($skill['skill_id'] == $skill_id) {
+                                                            $applied_filters[] = 'Skill: ' . htmlspecialchars($skill['skill_name']);
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                echo implode(', ', $applied_filters);
+                                                ?>
+                                            </small>
+                                        </div>
+                                    <?php endif; ?>
                                     <a href="coach-search.php" class="ms-2 small">Clear search</a>
                                 </div>
                             <?php endif; ?>
@@ -427,8 +489,10 @@ include '../includes/header.php';
                                 <option value="">All Categories</option>
                                 <?php foreach ($categories as $category): ?>
                                     <option value="<?= $category['category_id'] ?>" 
-                                            <?= $selected_category == $category['category_id'] ? 'selected' : '' ?>>
+                                            <?= $selected_category == $category['category_id'] ? 'selected' : '' ?>
+                                            <?= in_array($category['category_id'], $auto_detected_categories) ? 'class="text-success fw-bold"' : '' ?>>
                                         <?= htmlspecialchars($category['category_name']) ?>
+                                        <?= in_array($category['category_id'], $auto_detected_categories) ? ' ✓' : '' ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -459,8 +523,9 @@ include '../includes/header.php';
                                                        name="skills[]" value="<?= $skill['skill_id'] ?>" 
                                                        id="skill_<?= $skill['skill_id'] ?>"
                                                        <?= in_array($skill['skill_id'], $selected_skills) ? 'checked' : '' ?>>
-                                                <label class="form-check-label" for="skill_<?= $skill['skill_id'] ?>">
+                                                <label class="form-check-label <?= in_array($skill['skill_id'], $auto_detected_skills) ? 'text-success fw-bold' : '' ?>" for="skill_<?= $skill['skill_id'] ?>">
                                                     <?= htmlspecialchars($skill['skill_name']) ?>
+                                                    <?= in_array($skill['skill_id'], $auto_detected_skills) ? ' <i class="bi bi-check-circle-fill text-success small"></i>' : '' ?>
                                                 </label>
                                             </div>
                                         <?php endforeach; ?>
@@ -471,18 +536,18 @@ include '../includes/header.php';
                         
                         <!-- Price Range Filter -->
                         <div class="mb-3">
-                            <label class="form-label">Price Range ($/hour)</label>
+                            <label class="form-label">Price Range (€/hour)</label>
                             <div class="row g-2">
                                 <div class="col-6">
                                     <div class="input-group">
-                                        <span class="input-group-text">$</span>
+                                        <span class="input-group-text">€</span>
                                         <input type="number" class="form-control" name="min_price" 
                                                value="<?= $min_price > 0 ? $min_price : '' ?>" placeholder="Min" min="0">
                                     </div>
                                 </div>
                                 <div class="col-6">
                                     <div class="input-group">
-                                        <span class="input-group-text">$</span>
+                                        <span class="input-group-text">€</span>
                                         <input type="number" class="form-control" name="max_price" 
                                                value="<?= $max_price < 9999999 ? $max_price : '' ?>" placeholder="Max" min="0">
                                     </div>
@@ -562,10 +627,10 @@ include '../includes/header.php';
                                             <li>Minimum rating: <?= htmlspecialchars($min_rating) ?></li>
                                         <?php endif; ?>
                                         <?php if ($min_price > 0): ?>
-                                            <li>Minimum price: $<?= htmlspecialchars($min_price) ?></li>
+                                            <li>Minimum price: €<?= htmlspecialchars($min_price) ?></li>
                                         <?php endif; ?>
                                         <?php if ($max_price < 9999999): ?>
-                                            <li>Maximum price: $<?= htmlspecialchars($max_price) ?></li>
+                                            <li>Maximum price: €<?= htmlspecialchars($max_price) ?></li>
                                         <?php endif; ?>
                                     </ul>
                                     <p>Total coaches in database: 
@@ -633,7 +698,7 @@ include '../includes/header.php';
                                                     </div>
                                                     
                                                     <div class="d-flex">
-                                                        <span class="badge bg-primary me-1">$<?= number_format($coach['hourly_rate'], 2) ?>/hr</span>
+                                                        <span class="badge bg-primary me-1">€<?= number_format($coach['hourly_rate'], 2) ?>/hr</span>
                                                         <span class="badge bg-secondary"><?= htmlspecialchars($coach['experience']) ?></span>
                                                     </div>
                                                 </div>
