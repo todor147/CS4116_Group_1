@@ -63,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $hourly_rate = trim($_POST['hourly_rate'] ?? '');
     $video_url = trim($_POST['video_url'] ?? '');
     $category_id = isset($_POST['category_id']) ? (int)$_POST['category_id'] : null;
+    $custom_category = trim($_POST['custom_category'] ?? '');
     
     if (empty($headline)) {
         $errors[] = "Professional headline is required";
@@ -87,8 +88,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = "Please enter a valid URL for your video";
     }
     
-    if (!$category_id) {
-        $errors[] = "Please select an expertise category";
+    // Category validation - either select existing or provide custom
+    if ($category_id === -1 && empty($custom_category)) {
+        $errors[] = "Please enter a custom category";
+    } elseif ($category_id === 0 || $category_id === null) {
+        $errors[] = "Please select a category or provide a custom one";
+    } elseif ($category_id === -1) {
+        // Validate custom category name format
+        if (strlen($custom_category) > 100) {
+            $errors[] = "Custom category name is too long. Maximum 100 characters allowed.";
+        }
+        
+        // Allow only letters, numbers, spaces and basic punctuation
+        if (!preg_match('/^[a-zA-Z0-9\s\-,.&\'()]+$/', $custom_category)) {
+            $errors[] = "Custom category name contains invalid characters. Please use only letters, numbers, spaces, and basic punctuation.";
+        }
     }
     
     // If no errors, insert coach profile
@@ -104,10 +118,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("User does not exist in the database.");
             }
             
+            // Handle custom category if provided
+            if ($category_id === -1 && !empty($custom_category)) {
+                // Instead of creating a new category in the Expertise_Categories table,
+                // we'll store the custom category name in the Coaches table directly
+                $custom_category_name = trim($custom_category);
+                
+                // The category_id will be null in the system categories
+                $category_id = null;
+            }
+            
             // Insert coach profile
             $stmt = $pdo->prepare("
-                INSERT INTO Coaches (user_id, headline, about_me, experience, hourly_rate, video_url) 
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO Coaches (user_id, headline, about_me, experience, hourly_rate, video_url, custom_category) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
                 $user_id,
@@ -115,7 +139,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $about_me,
                 $experience,
                 $hourly_rate,
-                $video_url
+                $video_url,
+                $category_id === null ? $custom_category_name : null
             ]);
             
             $coach_id = $pdo->lastInsertId();
@@ -268,9 +293,9 @@ include '../includes/header.php';
                             </div>
                             
                             <div class="mb-3">
-                                <label for="hourly_rate" class="form-label">Hourly Rate (USD) *</label>
+                                <label for="hourly_rate" class="form-label">Hourly Rate (EUR) *</label>
                                 <div class="input-group">
-                                    <span class="input-group-text">$</span>
+                                    <span class="input-group-text">€</span>
                                     <input type="number" class="form-control" id="hourly_rate" name="hourly_rate" 
                                            step="0.01" min="5" required
                                            value="<?= isset($_POST['hourly_rate']) ? htmlspecialchars($_POST['hourly_rate']) : '40.00' ?>">
@@ -290,9 +315,18 @@ include '../includes/header.php';
                                 <select class="form-select" id="category_id" name="category_id" required>
                                     <option value="">Select a category</option>
                                     <?php foreach ($categories as $category): ?>
-                                        <option value="<?= $category['id'] ?>"><?= htmlspecialchars($category['name']) ?></option>
+                                        <option value="<?= $category['id'] ?>" <?= (isset($_POST['category_id']) && $_POST['category_id'] == $category['id']) ? 'selected' : '' ?>><?= htmlspecialchars($category['name']) ?></option>
                                     <?php endforeach; ?>
+                                    <option value="-1" <?= (isset($_POST['category_id']) && $_POST['category_id'] == -1) ? 'selected' : '' ?>>Other (specify below)</option>
                                 </select>
+                            </div>
+                            
+                            <div class="mb-3" id="custom-category-container" style="<?= (isset($_POST['category_id']) && $_POST['category_id'] == -1) ? '' : 'display: none;' ?>">
+                                <label for="custom_category" class="form-label">Custom Category *</label>
+                                <input type="text" class="form-control" id="custom_category" name="custom_category" 
+                                       placeholder="e.g., Swimming Instructor, Chess Coach, Language Tutor"
+                                       value="<?= isset($_POST['custom_category']) ? htmlspecialchars($_POST['custom_category']) : '' ?>">
+                                <div class="form-text">Enter your specific expertise category if it's not in the list above</div>
                             </div>
                             
                             <div class="alert alert-info">
@@ -311,6 +345,25 @@ include '../includes/header.php';
                                 <a href="dashboard.php" class="btn btn-outline-secondary">Cancel</a>
                             </div>
                         </form>
+
+                        <script>
+                            // Show/hide custom category field based on selection
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const categorySelect = document.getElementById('category_id');
+                                const customCategoryContainer = document.getElementById('custom-category-container');
+                                const customCategoryInput = document.getElementById('custom_category');
+                                
+                                categorySelect.addEventListener('change', function() {
+                                    if (this.value === '-1') {
+                                        customCategoryContainer.style.display = 'block';
+                                        customCategoryInput.setAttribute('required', 'required');
+                                    } else {
+                                        customCategoryContainer.style.display = 'none';
+                                        customCategoryInput.removeAttribute('required');
+                                    }
+                                });
+                            });
+                        </script>
                     <?php endif; ?>
                 </div>
             </div>

@@ -1,10 +1,97 @@
 <?php
+// Temporary helper for direct database insertion (for testing)
+// Add this to the top of the file before session_start()
+if (isset($_GET['create_test_slots']) && $_GET['create_test_slots'] === 'yes') {
+    require_once __DIR__ . '/../includes/db_connection.php';
+    
+    // First, clear existing slots for testing
+    $stmt = $pdo->prepare("DELETE FROM CoachTimeSlots");
+    $stmt->execute();
+    
+    // Create test slots for coach ID 1
+    $coach_id = 1;
+    $dates = [
+        date('Y-m-d'), // Today
+        date('Y-m-d', strtotime('+1 day')), // Tomorrow
+        date('Y-m-d', strtotime('+2 day')), // Day after tomorrow
+        date('Y-m-d', strtotime('+3 day')), // 3 days from now
+        date('Y-m-d', strtotime('+4 day'))  // 4 days from now
+    ];
+    
+    foreach ($dates as $date) {
+        // Early morning slots (9 AM to 12 PM)
+        for ($hour = 9; $hour < 12; $hour++) {
+            $start_time = $date . ' ' . sprintf('%02d:00:00', $hour);
+            $end_time = $date . ' ' . sprintf('%02d:00:00', $hour + 1);
+            
+            $stmt = $pdo->prepare("
+                INSERT INTO CoachTimeSlots (coach_id, start_time, end_time, status)
+                VALUES (?, ?, ?, 'available')
+            ");
+            $stmt->execute([$coach_id, $start_time, $end_time]);
+        }
+        
+        // Afternoon slots (2 PM to 6 PM)
+        for ($hour = 14; $hour < 18; $hour++) {
+            $start_time = $date . ' ' . sprintf('%02d:00:00', $hour);
+            $end_time = $date . ' ' . sprintf('%02d:00:00', $hour + 1);
+            
+            $stmt = $pdo->prepare("
+                INSERT INTO CoachTimeSlots (coach_id, start_time, end_time, status)
+                VALUES (?, ?, ?, 'available')
+            ");
+            $stmt->execute([$coach_id, $start_time, $end_time]);
+        }
+    }
+    
+    // Create slots for other coaches too (for better testing)
+    $other_coaches = [2, 3, 4, 5];
+    foreach ($other_coaches as $other_coach_id) {
+        for ($i = 0; $i < 3; $i++) { // For the next 3 days
+            $date = date('Y-m-d', strtotime("+$i day"));
+            // Add 4 time slots per day per coach
+            for ($hour = 10; $hour < 18; $hour += 2) {
+                $start_time = $date . ' ' . sprintf('%02d:00:00', $hour);
+                $end_time = $date . ' ' . sprintf('%02d:00:00', $hour + 1);
+                
+                $stmt = $pdo->prepare("
+                    INSERT INTO CoachTimeSlots (coach_id, start_time, end_time, status)
+                    VALUES (?, ?, ?, 'available')
+                ");
+                $stmt->execute([$other_coach_id, $start_time, $end_time]);
+            }
+        }
+    }
+    
+    // Mark a few slots as booked for testing
+    $booked_date = $dates[1]; // Tomorrow
+    $booked_times = [
+        $booked_date . ' 10:00:00',
+        $booked_date . ' 11:00:00',
+        $booked_date . ' 15:00:00'
+    ];
+    
+    foreach ($booked_times as $booked_start_time) {
+        $booked_end_time = date('Y-m-d H:i:s', strtotime($booked_start_time . ' +1 hour'));
+        
+        $stmt = $pdo->prepare("
+            UPDATE CoachTimeSlots 
+            SET status = 'booked' 
+            WHERE coach_id = ? AND start_time = ? AND end_time = ?
+        ");
+        $stmt->execute([$coach_id, $booked_start_time, $booked_end_time]);
+    }
+    
+    echo "Test time slots created successfully.";
+    exit;
+}
+
 session_start();
 require_once '../includes/db_connection.php';
 require_once '../includes/auth_functions.php';
 
 // Redirect to login if not logged in
-if (!isset($_SESSION['logged_in']) || !$_SESSION['logged_in']) {
+if (!isset($_SESSION['logged_in']) || !isset($_SESSION['user_id'])) {
     header("Location: login.php?redirect=edit-coach-availability.php");
     exit();
 }
@@ -28,129 +115,182 @@ try {
 
 $errors = [];
 $success = false;
+$message = '';
 
-// Get coach's current availability
-try {
-    $stmt = $pdo->prepare("
-        SELECT * FROM Coach_Availability 
-        WHERE coach_id = ? 
-        ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
-    ");
-    $stmt->execute([$coach['coach_id']]);
-    $availabilityRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Handle add time slots submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_slots') {
+    $date_from = $_POST['date_from'] ?? '';
+    $date_to = $_POST['date_to'] ?? '';
+    $time_from = $_POST['time_from'] ?? '';
+    $time_to = $_POST['time_to'] ?? '';
+    $slot_duration = (int)$_POST['slot_duration'] ?? 60;
+    $days = $_POST['days'] ?? [];
     
-    // Organize by day of week
-    $availability = [];
-    $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    
-    foreach ($days as $day) {
-        $availability[$day] = [
-            'is_available' => false,
-            'slots' => []
-        ];
-    }
-    
-    foreach ($availabilityRecords as $record) {
-        $day = $record['day_of_week'];
-        $availability[$day]['is_available'] = (bool)$record['is_available'];
-        
-        if ($record['is_available']) {
-            $availability[$day]['slots'][] = [
-                'id' => $record['availability_id'],
-                'start_time' => $record['start_time'],
-                'end_time' => $record['end_time']
-            ];
-        }
-    }
-} catch (PDOException $e) {
-    die("Database error: " . $e->getMessage());
-}
-
-// Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        // Begin transaction
-        $pdo->beginTransaction();
-        
-        // Delete all current availability records
-        $stmt = $pdo->prepare("DELETE FROM Coach_Availability WHERE coach_id = ?");
-        $stmt->execute([$coach['coach_id']]);
-        
-        // Insert new availability records
-        $stmt = $pdo->prepare("
-            INSERT INTO Coach_Availability (coach_id, day_of_week, start_time, end_time, is_available)
-            VALUES (?, ?, ?, ?, ?)
-        ");
-        
-        foreach ($days as $day) {
-            $isAvailable = isset($_POST['available_days']) && in_array($day, $_POST['available_days']);
+    if (empty($date_from) || empty($date_to) || empty($time_from) || empty($time_to) || empty($days)) {
+        $errors[] = "All fields are required";
+    } else {
+        try {
+            // Convert inputs to DateTime objects
+            $start_date = new DateTime($date_from);
+            $end_date = new DateTime($date_to);
+            $end_date->setTime(23, 59, 59); // Include the entire last day
             
-            if ($isAvailable && isset($_POST['time_slots'][$day]) && is_array($_POST['time_slots'][$day])) {
-                foreach ($_POST['time_slots'][$day] as $slot) {
-                    if (isset($slot['start']) && isset($slot['end']) && $slot['start'] && $slot['end']) {
+            // Parse time inputs
+            list($from_hours, $from_minutes) = explode(':', $time_from);
+            list($to_hours, $to_minutes) = explode(':', $time_to);
+            
+            // Add a day to iterate through the date range
+            $current_date = clone $start_date;
+            $slots_added = 0;
+            
+            $pdo->beginTransaction();
+            
+            // Loop through each day in the range
+            while ($current_date <= $end_date) {
+                $current_day = strtolower($current_date->format('l')); // e.g., "monday"
+                
+                // Check if the current day is selected
+                if (in_array($current_day, $days)) {
+                    // Set the starting time for this day
+                    $slot_start = clone $current_date;
+                    $slot_start->setTime((int)$from_hours, (int)$from_minutes);
+                    
+                    // Set the ending time for this day
+                    $day_end = clone $current_date;
+                    $day_end->setTime((int)$to_hours, (int)$to_minutes);
+                    
+                    // Create time slots for this day
+                    while ($slot_start < $day_end) {
+                        $slot_end = clone $slot_start;
+                        $slot_end->modify("+{$slot_duration} minutes");
+                        
+                        // If the slot end time exceeds the day end time, stop
+                        if ($slot_end > $day_end) {
+                            break;
+                        }
+                        
+                        // Check if this slot already exists
+                        $stmt = $pdo->prepare("
+                            SELECT COUNT(*) FROM CoachTimeSlots
+                            WHERE coach_id = ? AND start_time = ? AND end_time = ?
+                        ");
                         $stmt->execute([
                             $coach['coach_id'],
-                            $day,
-                            $slot['start'],
-                            $slot['end'],
-                            true
+                            $slot_start->format('Y-m-d H:i:s'),
+                            $slot_end->format('Y-m-d H:i:s')
                         ]);
+                        
+                        if ($stmt->fetchColumn() == 0) {
+                            // Insert the time slot
+                            $stmt = $pdo->prepare("
+                                INSERT INTO CoachTimeSlots (coach_id, start_time, end_time, status)
+                                VALUES (?, ?, ?, 'available')
+                            ");
+                            $stmt->execute([
+                                $coach['coach_id'],
+                                $slot_start->format('Y-m-d H:i:s'),
+                                $slot_end->format('Y-m-d H:i:s')
+                            ]);
+                            
+                            $slots_added++;
+                        }
+                        
+                        // Move to the next slot
+                        $slot_start = $slot_end;
                     }
                 }
-            } else {
-                // Insert a placeholder record for unavailable days
-                $stmt->execute([
-                    $coach['coach_id'],
-                    $day,
-                    '00:00:00',
-                    '00:00:00',
-                    false
-                ]);
+                
+                // Move to the next day
+                $current_date->modify('+1 day');
             }
-        }
-        
-        // Commit transaction
-        $pdo->commit();
-        
-        // Set success flag
-        $success = true;
-        $_SESSION['success_message'] = "Your availability has been updated successfully.";
-        
-        // Refresh availability data
-        $stmt = $pdo->prepare("
-            SELECT * FROM Coach_Availability 
-            WHERE coach_id = ? 
-            ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
-        ");
-        $stmt->execute([$coach['coach_id']]);
-        $availabilityRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Reset availability array
-        foreach ($days as $day) {
-            $availability[$day] = [
-                'is_available' => false,
-                'slots' => []
-            ];
-        }
-        
-        foreach ($availabilityRecords as $record) {
-            $day = $record['day_of_week'];
-            $availability[$day]['is_available'] = (bool)$record['is_available'];
             
-            if ($record['is_available']) {
-                $availability[$day]['slots'][] = [
-                    'id' => $record['availability_id'],
-                    'start_time' => $record['start_time'],
-                    'end_time' => $record['end_time']
-                ];
+            $pdo->commit();
+            
+            if ($slots_added > 0) {
+                $success = true;
+                $message = "{$slots_added} time slots have been added to your schedule.";
+            } else {
+                $message = "No new time slots were added. They may already exist.";
             }
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            $errors[] = "Error creating time slots: " . $e->getMessage();
         }
-        
-    } catch (PDOException $e) {
-        // Rollback transaction on error
-        $pdo->rollBack();
-        $errors[] = "Database error: " . $e->getMessage();
     }
+}
+
+// Handle delete slot
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_slot') {
+    $slot_id = $_POST['slot_id'] ?? 0;
+    
+    if (!$slot_id) {
+        $errors[] = "Invalid slot ID";
+    } else {
+        try {
+            // Check if the slot belongs to this coach
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) FROM CoachTimeSlots
+                WHERE slot_id = ? AND coach_id = ?
+            ");
+            $stmt->execute([$slot_id, $coach['coach_id']]);
+            
+            if ($stmt->fetchColumn() > 0) {
+                $stmt = $pdo->prepare("
+                    DELETE FROM CoachTimeSlots
+                    WHERE slot_id = ? AND status = 'available'
+                ");
+                $stmt->execute([$slot_id]);
+                
+                if ($stmt->rowCount() > 0) {
+                    $success = true;
+                    $message = "Time slot removed successfully.";
+                } else {
+                    $errors[] = "Cannot delete a booked time slot.";
+                }
+            } else {
+                $errors[] = "Time slot not found or not yours.";
+            }
+        } catch (PDOException $e) {
+            $errors[] = "Error deleting time slot: " . $e->getMessage();
+        }
+    }
+}
+
+// Get the coach's time slots
+try {
+    // For the upcoming week
+    $start_date = new DateTime();
+    $end_date = clone $start_date;
+    $end_date->modify('+30 days');
+    
+    $stmt = $pdo->prepare("
+        SELECT * FROM CoachTimeSlots
+        WHERE coach_id = ?
+        AND start_time > NOW()
+        AND start_time < ?
+        ORDER BY start_time ASC
+    ");
+    $stmt->execute([
+        $coach['coach_id'],
+        $end_date->format('Y-m-d H:i:s')
+    ]);
+    
+    $time_slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Group slots by date for displaying
+    $grouped_slots = [];
+    foreach ($time_slots as $slot) {
+        $date = date('Y-m-d', strtotime($slot['start_time']));
+        if (!isset($grouped_slots[$date])) {
+            $grouped_slots[$date] = [];
+        }
+        $grouped_slots[$date][] = $slot;
+    }
+    
+    // Sort dates
+    ksort($grouped_slots);
+} catch (PDOException $e) {
+    $errors[] = "Error retrieving time slots: " . $e->getMessage();
 }
 
 // Include header
@@ -187,14 +327,14 @@ include '../includes/header.php';
         
         <!-- Main Content -->
         <div class="col-md-9">
-            <div class="card shadow">
+            <div class="card shadow mb-4">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h2 class="h4 mb-0">Manage Availability</h2>
                 </div>
                 <div class="card-body">
                     <?php if ($success): ?>
                         <div class="alert alert-success">
-                            <i class="bi bi-check-circle-fill"></i> Your availability has been updated successfully.
+                            <i class="bi bi-check-circle-fill"></i> <?= htmlspecialchars($message) ?>
                         </div>
                     <?php endif; ?>
                     
@@ -208,94 +348,160 @@ include '../includes/header.php';
                         </div>
                     <?php endif; ?>
                     
-                    <p class="mb-4">Set your weekly availability for coaching sessions. You can add multiple time slots for each day.</p>
+                    <p class="mb-4">Set your availability for coaching sessions by creating time slots that learners can book.</p>
                     
-                    <form method="post" action="" id="availabilityForm">
-                        <div class="accordion" id="availabilityAccordion">
-                            <?php foreach ($days as $index => $day): ?>
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header" id="heading<?= $day ?>">
-                                        <button class="accordion-button <?= $index > 0 ? 'collapsed' : '' ?>" type="button" 
-                                                data-bs-toggle="collapse" data-bs-target="#collapse<?= $day ?>" 
-                                                aria-expanded="<?= $index === 0 ? 'true' : 'false' ?>" 
-                                                aria-controls="collapse<?= $day ?>">
-                                            <div class="form-check form-switch me-2">
-                                                <input class="form-check-input day-toggle" type="checkbox" 
-                                                       id="available_<?= $day ?>" name="available_days[]" 
-                                                       value="<?= $day ?>" <?= $availability[$day]['is_available'] ? 'checked' : '' ?>
-                                                       onclick="event.stopPropagation();">
-                                                <label class="form-check-label" for="available_<?= $day ?>"></label>
-                                            </div>
-                                            <?= $day ?>
-                                        </button>
-                                    </h2>
-                                    <div id="collapse<?= $day ?>" 
-                                         class="accordion-collapse collapse <?= $index === 0 ? 'show' : '' ?>" 
-                                         aria-labelledby="heading<?= $day ?>" 
-                                         data-bs-parent="#availabilityAccordion">
-                                        <div class="accordion-body">
-                                            <div class="time-slots" id="slots_<?= $day ?>">
-                                                <?php if (!empty($availability[$day]['slots'])): ?>
-                                                    <?php foreach ($availability[$day]['slots'] as $index => $slot): ?>
-                                                        <div class="row mb-3 time-slot">
-                                                            <div class="col-md-5">
-                                                                <label class="form-label">Start Time</label>
-                                                                <input type="time" class="form-control start-time" 
-                                                                       name="time_slots[<?= $day ?>][<?= $index ?>][start]" 
-                                                                       value="<?= substr($slot['start_time'], 0, 5) ?>" 
-                                                                       required>
-                                                            </div>
-                                                            <div class="col-md-5">
-                                                                <label class="form-label">End Time</label>
-                                                                <input type="time" class="form-control end-time" 
-                                                                       name="time_slots[<?= $day ?>][<?= $index ?>][end]" 
-                                                                       value="<?= substr($slot['end_time'], 0, 5) ?>" 
-                                                                       required>
-                                                            </div>
-                                                            <div class="col-md-2 d-flex align-items-end">
-                                                                <button type="button" class="btn btn-outline-danger remove-slot mb-1">
-                                                                    <i class="bi bi-trash"></i>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    <?php endforeach; ?>
-                                                <?php else: ?>
-                                                    <div class="row mb-3 time-slot">
-                                                        <div class="col-md-5">
-                                                            <label class="form-label">Start Time</label>
-                                                            <input type="time" class="form-control start-time" 
-                                                                   name="time_slots[<?= $day ?>][0][start]" 
-                                                                   value="09:00" required>
-                                                        </div>
-                                                        <div class="col-md-5">
-                                                            <label class="form-label">End Time</label>
-                                                            <input type="time" class="form-control end-time" 
-                                                                   name="time_slots[<?= $day ?>][0][end]" 
-                                                                   value="17:00" required>
-                                                        </div>
-                                                        <div class="col-md-2 d-flex align-items-end">
-                                                            <button type="button" class="btn btn-outline-danger remove-slot mb-1">
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                <?php endif; ?>
-                                            </div>
-                                            <button type="button" class="btn btn-outline-primary add-slot" data-day="<?= $day ?>">
-                                                <i class="bi bi-plus-circle"></i> Add Time Slot
-                                            </button>
-                                        </div>
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h3 class="h5 mb-0">Add Availability Slots</h3>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="" id="addSlotsForm">
+                                <input type="hidden" name="action" value="add_slots">
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="date_from" class="form-label">Date Range (Start)</label>
+                                        <input type="date" class="form-control" id="date_from" name="date_from" 
+                                               min="<?= date('Y-m-d') ?>" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="date_to" class="form-label">Date Range (End)</label>
+                                        <input type="date" class="form-control" id="date_to" name="date_to" 
+                                               min="<?= date('Y-m-d') ?>" required>
                                     </div>
                                 </div>
-                            <?php endforeach; ?>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="time_from" class="form-label">Time Range (Start)</label>
+                                        <input type="time" class="form-control" id="time_from" name="time_from" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="time_to" class="form-label">Time Range (End)</label>
+                                        <input type="time" class="form-control" id="time_to" name="time_to" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="slot_duration" class="form-label">Slot Duration (minutes)</label>
+                                    <select class="form-select" id="slot_duration" name="slot_duration" required>
+                                        <option value="30">30 minutes</option>
+                                        <option value="45">45 minutes</option>
+                                        <option value="60" selected>60 minutes (1 hour)</option>
+                                        <option value="90">90 minutes (1.5 hours)</option>
+                                        <option value="120">120 minutes (2 hours)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label d-block">Days of the Week</label>
+                                    <div class="row">
+                                        <?php
+                                        $weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                                        foreach ($weekdays as $day) {
+                                            echo '<div class="col-auto">';
+                                            echo '<div class="form-check">';
+                                            echo '<input class="form-check-input" type="checkbox" name="days[]" value="' . $day . '" id="day_' . $day . '">';
+                                            echo '<label class="form-check-label" for="day_' . $day . '">' . ucfirst($day) . '</label>';
+                                            echo '</div>';
+                                            echo '</div>';
+                                        }
+                                        ?>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">Add Time Slots</button>
+                            </form>
                         </div>
-                        
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save"></i> Save Availability
-                            </button>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h3 class="h5 mb-0">Your Upcoming Availability</h3>
                         </div>
-                    </form>
+                        <div class="card-body">
+                            <?php if (empty($grouped_slots)): ?>
+                                <p class="text-muted">You have no upcoming available time slots. Use the form above to add some.</p>
+                            <?php else: ?>
+                                <div class="accordion" id="availabilityAccordion">
+                                    <?php $index = 0; foreach ($grouped_slots as $date => $slots): $index++; ?>
+                                        <div class="accordion-item">
+                                            <h2 class="accordion-header" id="heading<?= $index ?>">
+                                                <button class="accordion-button <?= $index > 1 ? 'collapsed' : '' ?>" type="button" 
+                                                        data-bs-toggle="collapse" data-bs-target="#collapse<?= $index ?>" 
+                                                        aria-expanded="<?= $index === 1 ? 'true' : 'false' ?>">
+                                                    <?= date('l, F j, Y', strtotime($date)) ?> 
+                                                    <span class="badge bg-primary ms-2"><?= count($slots) ?> slot<?= count($slots) !== 1 ? 's' : '' ?></span>
+                                                </button>
+                                            </h2>
+                                            <div id="collapse<?= $index ?>" 
+                                                 class="accordion-collapse collapse <?= $index === 1 ? 'show' : '' ?>" 
+                                                 aria-labelledby="heading<?= $index ?>">
+                                                <div class="accordion-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Time</th>
+                                                                    <th>Duration</th>
+                                                                    <th>Status</th>
+                                                                    <th>Actions</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <?php foreach ($slots as $slot): ?>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <?= date('g:i A', strtotime($slot['start_time'])) ?> - 
+                                                                            <?= date('g:i A', strtotime($slot['end_time'])) ?>
+                                                                        </td>
+                                                                        <td>
+                                                                            <?php
+                                                                            $start = new DateTime($slot['start_time']);
+                                                                            $end = new DateTime($slot['end_time']);
+                                                                            $interval = $start->diff($end);
+                                                                            $minutes = $interval->h * 60 + $interval->i;
+                                                                            echo $minutes . ' minutes';
+                                                                            ?>
+                                                                        </td>
+                                                                        <td>
+                                                                            <?php if ($slot['status'] === 'available'): ?>
+                                                                                <span class="badge bg-success">Available</span>
+                                                                            <?php elseif ($slot['status'] === 'booked'): ?>
+                                                                                <span class="badge bg-danger">Booked</span>
+                                                                            <?php else: ?>
+                                                                                <span class="badge bg-warning">Unavailable</span>
+                                                                            <?php endif; ?>
+                                                                        </td>
+                                                                        <td>
+                                                                            <?php if ($slot['status'] === 'available'): ?>
+                                                                                <form method="post" action="" class="d-inline">
+                                                                                    <input type="hidden" name="action" value="delete_slot">
+                                                                                    <input type="hidden" name="slot_id" value="<?= $slot['slot_id'] ?>">
+                                                                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                                                            onclick="return confirm('Are you sure you want to delete this time slot?')">
+                                                                                        <i class="bi bi-trash"></i> Remove
+                                                                                    </button>
+                                                                                </form>
+                                                                            <?php elseif ($slot['status'] === 'booked'): ?>
+                                                                                <button class="btn btn-sm btn-secondary" disabled>
+                                                                                    <i class="bi bi-lock"></i> Booked
+                                                                                </button>
+                                                                            <?php endif; ?>
+                                                                        </td>
+                                                                    </tr>
+                                                                <?php endforeach; ?>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -304,111 +510,43 @@ include '../includes/header.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Add time slot
-    document.querySelectorAll('.add-slot').forEach(button => {
-        button.addEventListener('click', function() {
-            const day = this.getAttribute('data-day');
-            const slotsContainer = document.getElementById('slots_' + day);
-            const slotCount = slotsContainer.querySelectorAll('.time-slot').length;
-            
-            const newSlot = document.createElement('div');
-            newSlot.className = 'row mb-3 time-slot';
-            newSlot.innerHTML = `
-                <div class="col-md-5">
-                    <label class="form-label">Start Time</label>
-                    <input type="time" class="form-control start-time" 
-                           name="time_slots[${day}][${slotCount}][start]" 
-                           value="09:00" required>
-                </div>
-                <div class="col-md-5">
-                    <label class="form-label">End Time</label>
-                    <input type="time" class="form-control end-time" 
-                           name="time_slots[${day}][${slotCount}][end]" 
-                           value="17:00" required>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="button" class="btn btn-outline-danger remove-slot mb-1">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </div>
-            `;
-            
-            slotsContainer.appendChild(newSlot);
-            
-            // Add event listener to the new remove button
-            newSlot.querySelector('.remove-slot').addEventListener('click', removeSlot);
-        });
-    });
+    // Date range validation
+    const dateFrom = document.getElementById('date_from');
+    const dateTo = document.getElementById('date_to');
     
-    // Remove time slot
-    function removeSlot() {
-        const slot = this.closest('.time-slot');
-        const slotsContainer = slot.parentElement;
-        
-        // Don't remove if it's the only slot
-        if (slotsContainer.querySelectorAll('.time-slot').length > 1) {
-            slot.remove();
-            
-            // Reindex the remaining slots
-            const day = slotsContainer.id.replace('slots_', '');
-            const slots = slotsContainer.querySelectorAll('.time-slot');
-            
-            slots.forEach((slot, index) => {
-                slot.querySelector('.start-time').name = `time_slots[${day}][${index}][start]`;
-                slot.querySelector('.end-time').name = `time_slots[${day}][${index}][end]`;
-            });
+    dateFrom.addEventListener('change', function() {
+        dateTo.min = this.value;
+        if (dateTo.value && dateTo.value < this.value) {
+            dateTo.value = this.value;
         }
-    }
-    
-    // Add event listeners to existing remove buttons
-    document.querySelectorAll('.remove-slot').forEach(button => {
-        button.addEventListener('click', removeSlot);
     });
     
-    // Toggle day availability
-    document.querySelectorAll('.day-toggle').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const day = this.id.replace('available_', '');
-            const slotsContainer = document.getElementById('slots_' + day);
-            const inputs = slotsContainer.querySelectorAll('input');
-            
-            if (this.checked) {
-                inputs.forEach(input => input.removeAttribute('disabled'));
-                slotsContainer.classList.remove('disabled-slots');
-                document.querySelector(`#collapse${day} .add-slot`).disabled = false;
-            } else {
-                inputs.forEach(input => input.setAttribute('disabled', 'disabled'));
-                slotsContainer.classList.add('disabled-slots');
-                document.querySelector(`#collapse${day} .add-slot`).disabled = true;
-            }
-        });
-        
-        // Initial state
-        checkbox.dispatchEvent(new Event('change'));
+    // Time range validation
+    const timeFrom = document.getElementById('time_from');
+    const timeTo = document.getElementById('time_to');
+    
+    timeTo.addEventListener('change', function() {
+        if (timeFrom.value && this.value <= timeFrom.value) {
+            alert('End time must be after start time');
+            this.value = '';
+        }
+    });
+    
+    timeFrom.addEventListener('change', function() {
+        if (timeTo.value && timeTo.value <= this.value) {
+            timeTo.value = '';
+        }
     });
     
     // Form validation
-    document.getElementById('availabilityForm').addEventListener('submit', function(event) {
-        let valid = false;
-        
-        document.querySelectorAll('.day-toggle').forEach(checkbox => {
-            if (checkbox.checked) {
-                valid = true;
-            }
-        });
-        
-        if (!valid) {
-            event.preventDefault();
-            alert('Please select at least one day you are available.');
+    document.getElementById('addSlotsForm').addEventListener('submit', function(e) {
+        const days = document.querySelectorAll('input[name="days[]"]:checked');
+        if (days.length === 0) {
+            e.preventDefault();
+            alert('Please select at least one day of the week');
         }
     });
 });
 </script>
-
-<style>
-.disabled-slots {
-    opacity: 0.5;
-}
-</style>
 
 <?php include '../includes/footer.php'; ?> 

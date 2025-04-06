@@ -1,4 +1,10 @@
 <?php
+// Guard against multiple inclusions
+if (defined('AUTH_FUNCTIONS_INCLUDED')) {
+    return;
+}
+define('AUTH_FUNCTIONS_INCLUDED', true);
+
 /**
  * Authenticate a user with email and password
  * 

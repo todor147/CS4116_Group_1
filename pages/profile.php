@@ -20,6 +20,7 @@ $success_message = '';
 $error_message = '';
 $user = null;
 $coach = null;
+$is_verified_customer = false;
 
 // Fetch user data
 try {
@@ -32,6 +33,27 @@ try {
         $stmt = $pdo->prepare("SELECT * FROM Coaches WHERE user_id = ?");
         $stmt->execute([$user_id]);
         $coach = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    // Check if user is a verified customer (has completed sessions)
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) as completed_sessions 
+        FROM Sessions 
+        WHERE learner_id = ? AND status = 'completed'
+    ");
+    $stmt->execute([$user_id]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    $is_verified_customer = ($result['completed_sessions'] > 0);
+    
+    // Get count of pending insight requests if user is a verified customer
+    if ($is_verified_customer) {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as pending_count 
+            FROM CustomerInsightRequests 
+            WHERE customer_id = ? AND status = 'pending'
+        ");
+        $stmt->execute([$user_id]);
+        $pending_request_count = $stmt->fetchColumn();
     }
 } catch (PDOException $e) {
     $error_message = "Error fetching user data: " . $e->getMessage();
@@ -259,7 +281,7 @@ include __DIR__ . '/../includes/header.php';
                     <h5 class="card-title mb-0">Profile Details</h5>
                 </div>
                 <div class="card-body">
-                    <form action="profile.php" method="post">
+                    <form action="profile.php" method="post" name="update_profile">
                         <input type="hidden" name="update_profile" value="1">
                         
                         <div class="row">
@@ -296,6 +318,9 @@ include __DIR__ . '/../includes/header.php';
                         <?php endif; ?>
                         
                         <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <a href="user_privacy_settings.php" class="btn btn-outline-secondary ms-2">
+                            <i class="bi bi-shield-check me-1"></i> Privacy Settings
+                        </a>
                     </form>
                 </div>
             </div>
@@ -306,7 +331,7 @@ include __DIR__ . '/../includes/header.php';
                     <h5 class="card-title mb-0">Change Password</h5>
                 </div>
                 <div class="card-body">
-                    <form action="profile.php" method="post">
+                    <form action="profile.php" method="post" name="change_password" id="change_password">
                         <input type="hidden" name="change_password" value="1">
                         
                         <div class="mb-3">
@@ -330,6 +355,26 @@ include __DIR__ . '/../includes/header.php';
                     </form>
                 </div>
             </div>
+
+            <?php if ($is_verified_customer): ?>
+            <div class="mt-4">
+                <h5>Verified Customer</h5>
+                <div class="list-group">
+                    <a href="manage_insight_requests.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-people me-2"></i> Manage Insight Requests
+                        </div>
+                        <?php if (isset($pending_request_count) && $pending_request_count > 0): ?>
+                        <span class="badge bg-primary rounded-pill"><?= $pending_request_count ?></span>
+                        <?php endif; ?>
+                    </a>
+                </div>
+                <div class="small text-muted mt-2">
+                    <i class="bi bi-info-circle"></i> As a verified customer who has completed coaching sessions, you can help others by sharing your insights about coaches.
+                </div>
+            </div>
+            <?php endif; ?>
+
         </div>
     </div>
 </div>

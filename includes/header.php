@@ -1,3 +1,14 @@
+<?php
+// Get the current page name
+$current_page = basename($_SERVER['PHP_SELF']);
+
+// Load notification functions if the user is logged in
+if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
+    require_once __DIR__ . '/notification_functions.php';
+    $unread_notification_count = getUnreadNotificationCount($pdo, $_SESSION['user_id']);
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -80,6 +91,28 @@
             white-space: nowrap;
             display: block;
         }
+        /* Ensure all dropdown elements have proper z-index and pointer events */
+        .dropdown, .dropdown-menu, .dropdown-toggle {
+            z-index: 1050 !important;
+        }
+        
+        /* Fix pointer events for dropdown triggers and content */
+        .dropdown-toggle, .dropdown-menu, .dropdown-item, .nav-link {
+            pointer-events: auto !important;
+        }
+        
+        /* Ensure proper stacking for navbar elements */
+        .navbar, .navbar-nav, .navbar-collapse {
+            z-index: 1050 !important;
+            position: relative;
+        }
+        
+        /* Prevent event blocking on dropdowns */
+        .dropdown-menu.show {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
     </style>
 </head>
 <body>
@@ -119,70 +152,50 @@
                         <a class="nav-link" href="help.php">Help Center</a>
                     </li>
                 </ul>
-                <div class="d-flex align-items-center">
+
+                <ul class="navbar-nav">
                     <?php if (isset($_SESSION['logged_in'])): ?>
-                        <a href="messages.php" class="btn btn-outline-primary btn-messages me-3">
-                            <i class="bi bi-chat-dots-fill"></i> Messages
-                        </a>
-                        <div class="dropdown user-dropdown">
-                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <?php 
-                                // Ultra-simplified profile image handling
-                                $profile_image = isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] : 'default.jpg';
-                                
-                                // Create the appropriate relative path based on current location
-                                $current_script = $_SERVER['SCRIPT_NAME'];
-                                
-                                // Determine if we're in a subdirectory
-                                if (strpos($current_script, '/pages/') !== false) {
-                                    // We're in a pages directory, need to go up one level
-                                    $image_base_path = "../assets/images/profiles/";
-                                } else {
-                                    // We're at root level
-                                    $image_base_path = "assets/images/profiles/";
-                                }
-                                
-                                // Simple check for the profile image with file_exists
-                                $image_file_path = __DIR__ . "/../assets/images/profiles/{$profile_image}";
-                                $default_file_path = __DIR__ . "/../assets/images/profiles/default.jpg";
-                                
-                                // Add a cache buster
-                                $cache_buster = "?t=" . time();
-                                
-                                if (file_exists($image_file_path)) {
-                                    // Use the user's profile image for display
-                                    $display_image = $image_base_path . $profile_image . $cache_buster;
-                                    error_log("HEADER: Using user's profile image: {$display_image}");
-                                } else {
-                                    // Use the default image
-                                    $display_image = $image_base_path . "default.jpg" . $cache_buster;
-                                    error_log("HEADER: Using default image: {$display_image} (user image not found at {$image_file_path})");
-                                }
-                                
-                                // Log default image existence
-                                error_log("DEFAULT IMAGE check: {$default_file_path} exists? " . (file_exists($default_file_path) ? "YES" : "NO"));
-                                ?>
-                                
-                                <img src="<?= $display_image ?>" alt="<?= htmlspecialchars($_SESSION['username']) ?>" class="user-avatar">
-                                <span class="username"><?= htmlspecialchars($_SESSION['username']) ?></span>
+                        <li class="nav-item">
+                            <a class="nav-link position-relative <?= $current_page === 'notifications.php' ? 'active' : '' ?>" href="notifications.php">
+                                <i class="bi bi-bell"></i>
+                                <?php if (isset($unread_notification_count) && $unread_notification_count > 0): ?>
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    <?= $unread_notification_count > 99 ? '99+' : $unread_notification_count ?>
+                                    <span class="visually-hidden">unread notifications</span>
+                                </span>
+                                <?php endif; ?>
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="profile.php"><i class="bi bi-person me-2"></i>Profile</a></li>
-                                <li><a class="dropdown-item" href="dashboard.php"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
-                                <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'business'): ?>
-                                <li><a class="dropdown-item" href="coach-settings.php"><i class="bi bi-gear me-2"></i>Coach Settings</a></li>
-                                <?php endif; ?>
-                                <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'admin'): ?>
-                                <li><a class="dropdown-item" href="manage-categories.php"><i class="bi bi-tags me-2"></i>Manage Categories</a></li>
-                                <?php endif; ?>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <?= $current_page === 'messages.php' ? 'active' : '' ?>" href="messages.php">
+                                <i class="bi bi-chat-dots"></i>
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-person-circle"></i>
+                                <?= $_SESSION['username'] ?? 'Account' ?>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                <li><a class="dropdown-item" href="profile.php">Profile</a></li>
+                                <li><a class="dropdown-item" href="dashboard.php">Dashboard</a></li>
+                                <li><a class="dropdown-item" href="session.php">My Sessions</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-danger" href="logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                                <li><a class="dropdown-item" href="logout.php">Logout</a></li>
                             </ul>
-                        </div>
+                        </li>
                     <?php else: ?>
-                        <a href="login.php" class="btn btn-primary btn-login">Login / Sign Up</a>
+                        <li class="nav-item">
+                            <a class="nav-link <?= $current_page === 'login.php' ? 'active' : '' ?>" href="login.php">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <?= $current_page === 'register.php' ? 'active' : '' ?>" href="register.php">Register</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="btn btn-primary" href="become-coach.php">Become a Coach</a>
+                        </li>
                     <?php endif; ?>
-                </div>
+                </ul>
             </div>
         </div>
     </nav>
@@ -191,3 +204,65 @@
     // Remove the problematic code that assumes $user is defined
     // Session variables are already set in auth_functions.php when the user logs in
     ?> 
+    <!-- Load the necessary JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Fix for dropdown functionality -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fix dropdown functionality
+        const dropdownToggleElements = document.querySelectorAll('.dropdown-toggle');
+        
+        dropdownToggleElements.forEach(function(element) {
+            // Remove any existing event listeners first
+            const newElement = element.cloneNode(true);
+            element.parentNode.replaceChild(newElement, element);
+            
+            // Add fresh event listener
+            newElement.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Toggle dropdown visibility
+                const dropdownMenu = this.nextElementSibling;
+                if (dropdownMenu && dropdownMenu.classList.contains('dropdown-menu')) {
+                    const isActive = dropdownMenu.classList.contains('show');
+                    
+                    // Close all other dropdowns first
+                    document.querySelectorAll('.dropdown-menu.show').forEach(function(menu) {
+                        menu.classList.remove('show');
+                    });
+                    
+                    // Toggle current dropdown
+                    if (!isActive) {
+                        dropdownMenu.classList.add('show');
+                        // Ensure proper positioning
+                        dropdownMenu.style.position = 'absolute';
+                        dropdownMenu.style.inset = '0px auto auto 0px';
+                        dropdownMenu.style.transform = 'translate(0px, 40px)';
+                    }
+                }
+            });
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.querySelectorAll('.dropdown-menu.show').forEach(function(menu) {
+                    menu.classList.remove('show');
+                });
+            }
+        });
+        
+        // Prevent closing dropdowns when clicking inside them
+        document.querySelectorAll('.dropdown-menu').forEach(function(menu) {
+            menu.addEventListener('click', function(e) {
+                if (e.target.tagName !== 'A') {
+                    e.stopPropagation();
+                }
+            });
+        });
+    });
+    </script>
+</body>
+</html> 

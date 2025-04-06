@@ -19,7 +19,9 @@ DROP TABLE IF EXISTS Skills;
 DROP TABLE IF EXISTS Expertise_Categories;
 DROP TABLE IF EXISTS CoachCategories;
 DROP TABLE IF EXISTS Categories;
+DROP TABLE IF EXISTS CoachTimeSlots;
 DROP TABLE IF EXISTS Coaches;
+DROP TABLE IF EXISTS UserPrivacySettings;
 DROP TABLE IF EXISTS Users;
 DROP TABLE IF EXISTS BannedWords;
 
@@ -40,6 +42,19 @@ CREATE TABLE Users (
     reset_token VARCHAR(64) DEFAULT NULL,
     reset_expires DATETIME DEFAULT NULL,
     last_login DATETIME DEFAULT NULL
+);
+
+-- Create UserPrivacySettings table
+CREATE TABLE UserPrivacySettings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    allow_insight_requests TINYINT(1) NOT NULL DEFAULT 1,
+    share_session_history TINYINT(1) NOT NULL DEFAULT 1,
+    share_coach_ratings TINYINT(1) NOT NULL DEFAULT 1,
+    public_profile TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
 
 -- Create Coaches table
@@ -97,6 +112,17 @@ CREATE TABLE Coach_Availability (
     FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id) ON DELETE CASCADE
 );
 
+-- Create CoachTimeSlots table
+CREATE TABLE CoachTimeSlots (
+    slot_id INT AUTO_INCREMENT PRIMARY KEY,
+    coach_id INT NOT NULL,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NOT NULL,
+    status ENUM('available', 'booked', 'unavailable') DEFAULT 'available',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id) ON DELETE CASCADE
+);
+
 -- Create ServiceTiers table
 CREATE TABLE ServiceTiers (
     tier_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -131,6 +157,7 @@ CREATE TABLE sessions (
     scheduled_time DATETIME,
     duration INT, -- in minutes
     status ENUM('scheduled', 'completed', 'cancelled'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (inquiry_id) REFERENCES serviceinquiries(inquiry_id) ON DELETE SET NULL,
     FOREIGN KEY (learner_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id) ON DELETE CASCADE,
@@ -178,6 +205,7 @@ CREATE TABLE Messages (
     content TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_read BOOLEAN DEFAULT FALSE,
+    status ENUM('pending', 'approved', 'rejected') DEFAULT 'approved',
     FOREIGN KEY (sender_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (receiver_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (inquiry_id) REFERENCES serviceinquiries(inquiry_id) ON DELETE CASCADE
@@ -186,12 +214,13 @@ CREATE TABLE Messages (
 -- Create CustomerInsightRequests table
 CREATE TABLE CustomerInsightRequests (
     request_id INT PRIMARY KEY AUTO_INCREMENT,
-    requester_id INT,
-    verified_customer_id INT,
-    coach_id INT,
+    requester_id INT NOT NULL,
+    verified_customer_id INT NOT NULL,
+    coach_id INT NOT NULL,
     status ENUM('pending', 'accepted', 'rejected') DEFAULT 'pending',
     message TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (requester_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (verified_customer_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id) ON DELETE CASCADE
@@ -200,10 +229,10 @@ CREATE TABLE CustomerInsightRequests (
 -- Create CustomerInsightMessages table
 CREATE TABLE CustomerInsightMessages (
     message_id INT PRIMARY KEY AUTO_INCREMENT,
-    request_id INT,
-    sender_id INT,
-    receiver_id INT,
-    content TEXT,
+    request_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    receiver_id INT NOT NULL,
+    content TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_read BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (request_id) REFERENCES CustomerInsightRequests(request_id) ON DELETE CASCADE,
@@ -233,5 +262,41 @@ CREATE INDEX idx_sessions_status ON sessions(status);
 CREATE INDEX idx_reviews_rating ON Reviews(rating);
 CREATE INDEX idx_coach_skills ON Coach_Skills(coach_id, skill_id);
 CREATE INDEX idx_coach_availability ON Coach_Availability(coach_id, day_of_week);
+CREATE INDEX idx_customer_insight_messages_request_id ON CustomerInsightMessages(request_id);
+CREATE INDEX idx_customer_insight_messages_sender_receiver ON CustomerInsightMessages(sender_id, receiver_id);
+CREATE INDEX idx_customer_insight_messages_is_read ON CustomerInsightMessages(is_read);
+CREATE INDEX idx_coach_time_slots ON CoachTimeSlots(coach_id, status, start_time);
 
+-- Check the resulting structure
 SHOW CREATE TABLE sessions;
+
+-- Add RescheduleRequests table
+CREATE TABLE IF NOT EXISTS `RescheduleRequests` (
+  `request_id` int(11) NOT NULL AUTO_INCREMENT,
+  `session_id` int(11) NOT NULL,
+  `requester_id` int(11) NOT NULL,
+  `new_time` datetime NOT NULL,
+  `reason` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('pending', 'approved', 'rejected') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` datetime NOT NULL,
+  `responded_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`request_id`),
+  KEY `session_id` (`session_id`),
+  KEY `requester_id` (`requester_id`),
+  CONSTRAINT `reschedule_requests_session_id_foreign` FOREIGN KEY (`session_id`) REFERENCES `sessions` (`session_id`) ON DELETE CASCADE,
+  CONSTRAINT `reschedule_requests_requester_id_foreign` FOREIGN KEY (`requester_id`) REFERENCES `Users` (`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Add Notifications table if it doesn't exist
+CREATE TABLE IF NOT EXISTS `Notifications` (
+  `notification_id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `message` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `link` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`notification_id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `notifications_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `Users` (`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

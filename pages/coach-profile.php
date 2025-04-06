@@ -27,6 +27,24 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         $stmt->execute([$coach_id]);
         $coach = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        // Handle case where custom_category column doesn't exist
+        if (!array_key_exists('custom_category', $coach) && $coach) {
+            try {
+                // Check if column exists first to avoid errors
+                $result = $pdo->query("SHOW COLUMNS FROM Coaches LIKE 'custom_category'");
+                if ($result->rowCount() === 0) {
+                    // Add column if it doesn't exist
+                    $pdo->exec("ALTER TABLE Coaches ADD COLUMN custom_category VARCHAR(100) NULL AFTER video_url");
+                    error_log("Added missing custom_category column to Coaches table.");
+                    $coach['custom_category'] = null; // Set default value
+                }
+            } catch (PDOException $e) {
+                error_log("Error checking/adding custom_category column: " . $e->getMessage());
+                // Fail silently and just set default value
+                $coach['custom_category'] = null;
+            }
+        }
+
         if (!$coach) {
             // Coach not found, set error message
             $error_message = "Coach not found";
@@ -72,17 +90,40 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             $stmt->execute([$coach_id]);
             $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            // Get coach skills
-            $stmt = $pdo->prepare("
-                SELECT cs.proficiency_level, s.skill_name, s.description, ec.category_name
-                FROM Coach_Skills cs
-                JOIN Skills s ON cs.skill_id = s.skill_id
-                JOIN Expertise_Categories ec ON s.category_id = ec.category_id
-                WHERE cs.coach_id = ?
-                ORDER BY cs.proficiency_level DESC, s.skill_name ASC
-            ");
-            $stmt->execute([$coach_id]);
-            $coach_skills = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Get coach's skills
+            try {
+                $stmt = $pdo->prepare("
+                    SELECT s.*, cs.proficiency_level, ec.category_name, ec.category_id
+                    FROM Coach_Skills cs
+                    JOIN Skills s ON cs.skill_id = s.skill_id
+                    JOIN Expertise_Categories ec ON s.category_id = ec.category_id
+                    WHERE cs.coach_id = ?
+                ");
+                $stmt->execute([$coach_id]);
+                $coach_skills = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Also try to get coach's custom skills if the table exists
+                try {
+                    $stmt = $pdo->prepare("
+                        SELECT ccs.*, ec.category_name
+                        FROM Coach_Custom_Skills ccs
+                        JOIN Expertise_Categories ec ON ccs.category_id = ec.category_id
+                        WHERE ccs.coach_id = ?
+                    ");
+                    $stmt->execute([$coach_id]);
+                    $custom_skills = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    // Combine regular and custom skills
+                    foreach ($custom_skills as &$skill) {
+                        $skill['is_custom'] = true;
+                        $coach_skills[] = $skill;
+                    }
+                } catch (PDOException $e) {
+                    // Table might not exist yet - that's fine
+                }
+            } catch (PDOException $e) {
+                $coach_skills = [];
+            }
             
             // Get coach availability
             $stmt = $pdo->prepare("
@@ -229,16 +270,29 @@ include __DIR__ . '/../includes/header.php';
                         </div>
                         
                         <div class="d-flex justify-content-center mb-3">
-                            <span class="badge bg-primary me-1">$<?= number_format($coach['hourly_rate'], 2) ?>/hr</span>
+                            <span class="badge bg-primary me-1">€<?= number_format($coach['hourly_rate'], 2) ?>/hr</span>
                             <span class="badge bg-secondary"><?= htmlspecialchars($coach['experience']) ?> Experience</span>
                         </div>
+                        
+                        <!-- Display custom category if it exists, otherwise show standard category -->
+                        <?php if (!empty($coach['custom_category'])): ?>
+                            <div class="mb-3">
+                                <span class="badge bg-info me-2">Custom Category:</span>
+                                <span class="badge bg-secondary"><?= htmlspecialchars($coach['custom_category']) ?></span>
+                            </div>
+                        <?php endif; ?>
                         
                         <p class="card-text"><?= nl2br(htmlspecialchars($coach['bio'] ?? '')) ?></p>
                         
                         <?php if (isset($_SESSION['logged_in']) && $_SESSION['user_id'] != $coach['user_id']): ?>
-                            <a href="messages.php?coach_id=<?= $coach_id ?>" class="btn btn-outline-primary mb-2">
-                                <i class="bi bi-chat-dots"></i> Message
-                            </a>
+                            <div class="d-grid gap-2">
+                                <a href="messages.php?new_conversation=true&recipient_id=<?= $coach['user_id'] ?>" class="btn btn-outline-primary mb-2">
+                                    <i class="bi bi-chat-dots"></i> Message
+                                </a>
+                                <a href="customer-insight-request.php?coach_id=<?= $coach_id ?>" class="btn btn-outline-info mb-2">
+                                    <i class="bi bi-info-circle"></i> Request Customer Insight
+                                </a>
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -328,6 +382,9 @@ include __DIR__ . '/../includes/header.php';
                                                             <?php if (!empty($skill['description'])): ?>
                                                                 <small class="text-muted"><?= htmlspecialchars($skill['description']) ?></small>
                                                             <?php endif; ?>
+                                                            <?php if (isset($skill['is_custom']) && $skill['is_custom']): ?>
+                                                                <span class="badge bg-success mt-1">Custom</span>
+                                                            <?php endif; ?>
                                                         </li>
                                                     <?php endforeach; ?>
                                                 </ul>
@@ -379,7 +436,7 @@ include __DIR__ . '/../includes/header.php';
                                 <?php foreach ($coach_services as $index => $service): ?>
                                     <div class="col-md-4 mb-4">
                                         <div class="card h-100 service-card<?= $index === 1 ? ' border-primary' : '' ?>">
-                                            <?php if ($index === 1): ?>
+                                            <?php if ($index === 1 || (isset($service['is_popular']) && $service['is_popular'])): ?>
                                                 <div class="ribbon">
                                                     <span>POPULAR</span>
                                                 </div>
@@ -389,7 +446,7 @@ include __DIR__ . '/../includes/header.php';
                                             </div>
                                             <div class="card-body">
                                                 <div class="text-center mb-4">
-                                                    <h4 class="display-6 mb-0">$<?= number_format($service['price'], 2) ?></h4>
+                                                    <h4 class="display-6 mb-0">€<?= number_format($service['price'], 2) ?></h4>
                                                     <p class="text-muted">per session</p>
                                                 </div>
                                                 <div class="service-description">
@@ -401,7 +458,7 @@ include __DIR__ . '/../includes/header.php';
                                                     <?php
                                                     // Assuming you have the coach ID and service tier ID available
                                                     $tier_id = $service['tier_id'];
-                                                    $book_session_url = "session.php?coach_id=$coach_id&tier_id=$tier_id";
+                                                    $book_session_url = "book.php?coach_id=$coach_id&tier_id=$tier_id";
                                                     ?>
                                                     <a href="<?= $book_session_url ?>" class="btn btn-primary btn-lg w-100">Book Session</a>
                                                 <?php else: ?>
@@ -425,7 +482,7 @@ include __DIR__ . '/../includes/header.php';
                                                 <h6 class="alert-heading">Not sure which service is right for you?</h6>
                                                 <p class="mb-0">You can message <?= htmlspecialchars($coach['username']) ?> to discuss your specific needs before booking a session.</p>
                                                 <?php if (isset($_SESSION['logged_in'])): ?>
-                                                    <a href="messages.php?recipient=<?= $coach['user_id'] ?>" class="btn btn-sm btn-info mt-2">
+                                                    <a href="messages.php?new_conversation=true&recipient_id=<?= $coach['user_id'] ?>" class="btn btn-sm btn-info mt-2">
                                                         <i class="bi bi-chat-dots"></i> Send Message
                                                     </a>
                                                 <?php else: ?>
@@ -447,9 +504,27 @@ include __DIR__ . '/../includes/header.php';
                     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">Reviews</h5>
                         <?php if (isset($_SESSION['logged_in'])): ?>
-                            <a href="add-review.php?coach_id=<?= $coach_id ?>" class="btn btn-light btn-sm">
-                                <i class="bi bi-plus-circle"></i> Add Review
-                            </a>
+                            <?php
+                            // Check if user has completed a session with this coach
+                            $stmt = $pdo->prepare("
+                                SELECT COUNT(*) as session_count 
+                                FROM Sessions 
+                                WHERE learner_id = ? AND coach_id = ? AND status = 'completed'
+                            ");
+                            $stmt->execute([$_SESSION['user_id'], $coach_id]);
+                            $has_completed_session = ($stmt->fetch(PDO::FETCH_ASSOC)['session_count'] > 0);
+                            
+                            if ($has_completed_session): 
+                            ?>
+                                <a href="review.php?coach_id=<?= $coach_id ?>" class="btn btn-light btn-sm">
+                                    <i class="bi bi-plus-circle"></i> Add Review
+                                </a>
+                            <?php else: ?>
+                                <button class="btn btn-light btn-sm" disabled data-bs-toggle="tooltip" 
+                                        title="Complete a session with this coach to leave a review">
+                                    <i class="bi bi-plus-circle"></i> Add Review
+                                </button>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                     <div class="card-body">
@@ -499,6 +574,37 @@ include __DIR__ . '/../includes/header.php';
                     </div>
                 </div>
             </div>
+        </div>
+        
+        <!-- Booking Button Section -->
+        <div class="mt-4 text-center">
+            <?php if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])): ?>
+                <!-- User is logged in, show normal booking button -->
+                <?php if (!empty($coach_services)): ?>
+                    <a href="book.php?coach_id=<?= $coach_id ?>&tier_id=<?= $coach_services[0]['tier_id'] ?>" class="btn btn-lg btn-primary px-5 py-3 mb-3">
+                        <i class="bi bi-calendar-plus me-2"></i> Book a Session
+                    </a>
+                <?php endif; ?>
+            <?php else: ?>
+                <!-- User is not logged in, show login prompt -->
+                <div class="alert alert-info p-4">
+                    <h5><i class="bi bi-info-circle me-2"></i> Want to book a session with this coach?</h5>
+                    <p class="mb-3">You'll need to login or create an account first.</p>
+                    <a href="login.php?redirect=coach-profile.php?id=<?= $coach_id ?>" class="btn btn-primary me-2">Login</a>
+                    <a href="register.php" class="btn btn-outline-primary">Create Account</a>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <div class="d-flex justify-content-between mt-3">
+            <?php if ($coach && $coach['coach_id'] && isset($_SESSION['user_id']) && $_SESSION['user_id'] != $coach['user_id']): ?>
+                <a href="book.php?coach_id=<?= $coach['coach_id'] ?>" class="btn btn-primary">
+                    <i class="bi bi-calendar-plus"></i> Book a Session
+                </a>
+                <a href="messages.php?receiver_id=<?= $coach['user_id'] ?>" class="btn btn-outline-primary ms-2">
+                    <i class="bi bi-chat-dots"></i> Contact Coach
+                </a>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 </div>

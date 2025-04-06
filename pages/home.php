@@ -7,45 +7,40 @@ session_start();
 // Include database connection
 require_once __DIR__ . '/../includes/db_connection.php';
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
-
-// Get user type and ID
-$user_id = $_SESSION['user_id'];
-$stmt = $pdo->prepare("SELECT user_type FROM Users WHERE user_id = ?");
-$stmt->execute([$user_id]);
-$user = $stmt->fetch();
-$is_coach = ($user['user_type'] === 'business');
-
-// Check if the user is a student and has booked sessions
+// Initialize variables for logged in users
+$user_id = null;
+$is_coach = false;
 $has_booked_sessions = false;
-if (!$is_coach) {
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) as session_count 
-        FROM session 
-        WHERE learner_id = ? AND status = 'scheduled'
-    ");
-    $stmt->execute([$user_id]);
-    $result = $stmt->fetch();
-    $has_booked_sessions = ($result['session_count'] > 0);
-}
-
-// Get user's upcoming sessions if logged in
 $upcoming_sessions = [];
-if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
+$next_session = null; // For the top reminder
+
+// Check if user is logged in and get their information
+if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
-    $user_type = $_SESSION['user_type'] ?? 'regular';
-    $is_coach = ($user_type === 'business');
-    
+    $stmt = $pdo->prepare("SELECT user_type FROM Users WHERE user_id = ?");
+    $stmt->execute([$user_id]);
+    $user = $stmt->fetch();
+    $is_coach = ($user['user_type'] === 'business');
+
+    // Check if the user is a student and has booked sessions
+    if (!$is_coach) {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as session_count 
+            FROM sessions 
+            WHERE learner_id = ? AND status = 'scheduled'
+        ");
+        $stmt->execute([$user_id]);
+        $result = $stmt->fetch();
+        $has_booked_sessions = ($result['session_count'] > 0);
+    }
+
+    // Get user's upcoming sessions
     try {
         if ($is_coach) {
             // Get coach's upcoming sessions
             $stmt = $pdo->prepare("
                 SELECT s.*, u.username as learner_name, st.name as tier_name, s.scheduled_time
-                FROM session s
+                FROM sessions s
                 JOIN Users u ON s.learner_id = u.user_id
                 JOIN ServiceTiers st ON s.tier_id = st.tier_id
                 WHERE s.coach_id = (SELECT coach_id FROM Coaches WHERE user_id = ?) 
@@ -59,7 +54,7 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
             // Get learner's upcoming sessions
             $stmt = $pdo->prepare("
                 SELECT s.*, u.username as coach_name, st.name as tier_name, s.scheduled_time
-                FROM session s
+                FROM sessions s
                 JOIN Coaches c ON s.coach_id = c.coach_id
                 JOIN Users u ON c.user_id = u.user_id
                 JOIN ServiceTiers st ON s.tier_id = st.tier_id
@@ -72,6 +67,14 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
             $stmt->execute([$user_id]);
         }
         $upcoming_sessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Get next session for the top reminder
+        if (!empty($upcoming_sessions)) {
+            $next_session = $upcoming_sessions[0];
+            
+            // Remove the first session from the upcoming_sessions array to avoid duplication
+            array_shift($upcoming_sessions);
+        }
         
         // Debug: Log the results
         error_log("Upcoming sessions: " . print_r($upcoming_sessions, true));
@@ -140,9 +143,55 @@ try {
 
 // Include header AFTER session and database operations
 include __DIR__ . '/../includes/header.php';
-?>
 
-<?php if (isset($_SESSION['logged_in']) && !empty($upcoming_sessions)): ?>
+// Display sticky reminder at the top if there's an upcoming session
+if (isset($_SESSION['user_id']) && $next_session): 
+    // Calculate how soon the session is
+    $session_time = new DateTime($next_session['scheduled_time']);
+    $now = new DateTime();
+    $interval = $now->diff($session_time);
+    $days_until = $interval->days;
+    $hours_until = $interval->h + ($interval->days * 24);
+    $minutes_until = $interval->i;
+    
+    // Set urgency classes based on how soon the session is
+    $alert_class = 'alert-primary';
+    if ($hours_until < 1) {
+        $alert_class = 'alert-danger'; // Less than an hour - red
+    } elseif ($hours_until < 24) {
+        $alert_class = 'alert-warning'; // Less than a day - yellow
+    }
+?>
+<div class="sticky-top" style="z-index: 990; margin-top: 56px;">
+    <div class="alert <?= $alert_class ?> mb-0 py-2 shadow-sm border-0 rounded-0">
+        <div class="container d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-alarm"></i>
+                <strong>Upcoming Session:</strong> 
+                <?= $is_coach ? "with " . htmlspecialchars($next_session['learner_name']) : "with " . htmlspecialchars($next_session['coach_name']) ?>
+                (<?= htmlspecialchars($next_session['tier_name']) ?>)
+                on <?= date('D, M j', strtotime($next_session['scheduled_time'])) ?>
+                at <?= date('g:i A', strtotime($next_session['scheduled_time'])) ?>
+                
+                <?php if ($hours_until < 24): ?>
+                    <span class="badge bg-danger ms-2">
+                        <?php if ($hours_until < 1): ?>
+                            Starting in <?= $minutes_until ?> minutes!
+                        <?php else: ?>
+                            Starting in <?= $hours_until ?> hours!
+                        <?php endif; ?>
+                    </span>
+                <?php endif; ?>
+            </div>
+            <a href="../pages/view-session.php?id=<?= $next_session['session_id'] ?>" class="btn btn-sm btn-light">
+                View Details
+            </a>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php if (isset($_SESSION['user_id']) && !empty($upcoming_sessions)): ?>
 <!-- Upcoming Sessions (Only if logged in and has sessions) -->
 <section class="py-4 bg-light border-bottom">
     <div class="container">
@@ -162,13 +211,13 @@ include __DIR__ . '/../includes/header.php';
                                 <span class="badge bg-primary"><?= date('D, M j', strtotime($session['scheduled_time'])) ?></span>
                                 <span class="d-block small"><?= date('g:i A', strtotime($session['scheduled_time'])) ?></span>
                             </div>
-                            <a href="session-details.php?id=<?= $session['session_id'] ?>" class="btn btn-sm btn-outline-primary">View Details</a>
+                            <a href="../pages/view-session.php?id=<?= $session['session_id'] ?>" class="btn btn-sm btn-outline-primary">View Details</a>
                         </div>
                     <?php endforeach; ?>
                 </div>
             </div>
             <div class="card-footer bg-white text-center">
-                <a href="session.php" class="text-decoration-none">View All Sessions</a>
+                <a href="../pages/session.php" class="text-decoration-none">View All Sessions</a>
             </div>
         </div>
     </div>
@@ -191,10 +240,10 @@ include __DIR__ . '/../includes/header.php';
                             <option value="in-person">Around me</option>
                         </select>
                         <button class="btn btn-primary px-4" type="submit">Search</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
+    </div>
     </div>
 </section>
 
@@ -204,9 +253,9 @@ include __DIR__ . '/../includes/header.php';
         <div class="row mb-4">
             <div class="col-12">
                 <h2 class="text-center mb-4">Popular Subjects</h2>
-            </div>
         </div>
-        
+    </div>
+
         <div class="row g-4 justify-content-center">
             <?php 
             // If no categories found, show placeholders
@@ -516,9 +565,9 @@ include __DIR__ . '/../includes/header.php';
                     <h3>Start Learning</h3>
                     <p class="text-muted">Connect with your coach and begin your learning journey.</p>
                 </div>
-            </div>
         </div>
     </div>
+</div>
 </section>
 
 <style>
