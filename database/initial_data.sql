@@ -200,31 +200,31 @@ INSERT INTO CoachTimeSlots (coach_id, start_time, end_time, status) VALUES
 (5, CONCAT(DATE_ADD(CURDATE(), INTERVAL 3 DAY), ' 15:00:00'), CONCAT(DATE_ADD(CURDATE(), INTERVAL 3 DAY), ' 16:00:00'), 'available');
 
 -- Create service tiers for coaches
-INSERT INTO ServiceTiers (coach_id, name, description, price) VALUES
-(1, 'Basic Math Tutoring', '60-minute one-on-one session covering basic concepts', 30.00),
-(1, 'Advanced Math Package', '90-minute session for advanced topics with practice problems', 45.00),
-(1, 'Exam Preparation', 'Intensive test preparation with mock exams and personalized feedback', 60.00),
-(2, 'Language Basics', 'Introduction to language fundamentals and basic conversation', 25.00),
-(2, 'Conversation Practice', 'Focused on improving speaking and listening skills', 35.00),
-(2, 'Fluency Program', 'Comprehensive language mastery program with cultural insights', 50.00),
-(3, 'Science Fundamentals', 'Covering basic scientific concepts and principles', 35.00),
-(3, 'Lab Preparation', 'Preparation for laboratory sessions and experiments', 45.00),
-(3, 'Advanced Theory', 'Deep dive into advanced scientific theories and research', 60.00),
-(4, 'Art Fundamentals', 'Basic techniques in drawing and color theory', 30.00),
-(4, 'Portfolio Development', 'Guidance in creating a professional art portfolio', 50.00),
-(5, 'Coding Basics', 'Introduction to programming concepts and basic syntax', 40.00),
-(5, 'Web Development', 'Building responsive websites with HTML, CSS, and JavaScript', 55.00),
-(5, 'Full-Stack Project', 'Comprehensive project-based learning for full-stack development', 75.00);
+INSERT INTO ServiceTiers (coach_id, name, description, price, is_popular) VALUES
+(1, 'Basic Math Tutoring', '60-minute one-on-one session covering basic concepts', 30.00, 0),
+(1, 'Advanced Math Package', '90-minute session for advanced topics with practice problems', 45.00, 1),
+(1, 'Exam Preparation', 'Intensive test preparation with mock exams and personalized feedback', 60.00, 0),
+(2, 'Language Basics', 'Introduction to language fundamentals and basic conversation', 25.00, 0),
+(2, 'Conversation Practice', 'Focused on improving speaking and listening skills', 35.00, 0),
+(2, 'Fluency Program', 'Comprehensive language mastery program with cultural insights', 50.00, 1),
+(3, 'Science Fundamentals', 'Covering basic scientific concepts and principles', 35.00, 0),
+(3, 'Lab Preparation', 'Preparation for laboratory sessions and experiments', 45.00, 0),
+(3, 'Advanced Theory', 'Deep dive into advanced scientific theories and research', 60.00, 1),
+(4, 'Art Fundamentals', 'Basic techniques in drawing and color theory', 30.00, 0),
+(4, 'Portfolio Development', 'Guidance in creating a professional art portfolio', 50.00, 0),
+(5, 'Coding Basics', 'Introduction to programming concepts and basic syntax', 40.00, 0),
+(5, 'Web Development', 'Building responsive websites with HTML, CSS, and JavaScript', 55.00, 1),
+(5, 'Full-Stack Project', 'Comprehensive project-based learning for full-stack development', 75.00, 0);
 
 -- Create sample service inquiries
-INSERT INTO serviceinquiries (user_id, coach_id, tier_id, status, message, created_at) VALUES
+INSERT INTO ServiceInquiries (user_id, coach_id, tier_id, status, message, created_at) VALUES
 (7, 1, 1, 'accepted', 'I need help with calculus for my upcoming exam.', DATE_SUB(NOW(), INTERVAL 7 DAY)),
 (8, 3, 7, 'completed', 'Looking for help with my physics homework.', DATE_SUB(NOW(), INTERVAL 14 DAY)),
 (9, 2, 4, 'pending', 'I want to improve my Spanish conversation skills.', DATE_SUB(NOW(), INTERVAL 2 DAY)),
 (10, 5, 12, 'accepted', 'Need to learn JavaScript basics for a project.', DATE_SUB(NOW(), INTERVAL 5 DAY));
 
 -- Create sample sessions
-INSERT INTO sessions (inquiry_id, learner_id, coach_id, tier_id, scheduled_time, duration, status) VALUES
+INSERT INTO Sessions (inquiry_id, learner_id, coach_id, tier_id, scheduled_time, duration, status) VALUES
 (1, 7, 1, 1, DATE_ADD(NOW(), INTERVAL 2 DAY), 60, 'scheduled'),
 (2, 8, 3, 7, DATE_SUB(NOW(), INTERVAL 10 DAY), 60, 'completed'),
 (4, 10, 5, 12, DATE_ADD(NOW(), INTERVAL 1 DAY), 90, 'scheduled');
@@ -295,4 +295,10 @@ INSERT INTO CustomerInsightRequests (requester_id, verified_customer_id, coach_i
 
 -- Create sample customer insight messages
 INSERT INTO CustomerInsightMessages (request_id, sender_id, receiver_id, content, created_at, is_read) VALUES
-(1, 9, 8, 'I specifically want to know if his teaching style is good for visual learners? I struggle with abstract concepts.', DATE_SUB(NOW(), INTERVAL 2 DAY), 1); 
+(1, 9, 8, 'I specifically want to know if his teaching style is good for visual learners? I struggle with abstract concepts.', DATE_SUB(NOW(), INTERVAL 2 DAY), 1);
+
+-- Mark some existing tiers as popular
+UPDATE ServiceTiers SET is_popular = 1 WHERE tier_id = 2; -- Advanced Math Package
+UPDATE ServiceTiers SET is_popular = 1 WHERE tier_id = 6; -- Fluency Program
+UPDATE ServiceTiers SET is_popular = 1 WHERE tier_id = 9; -- Advanced Theory
+UPDATE ServiceTiers SET is_popular = 1 WHERE tier_id = 13; -- Web Development 
