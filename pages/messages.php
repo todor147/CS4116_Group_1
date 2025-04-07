@@ -336,6 +336,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const messageContainer = document.getElementById('messageContainer');
     const messageForm = document.getElementById('messageForm');
     
+    // Track the last displayed message ID to prevent duplicates
+    let lastDisplayedMessageId = 0;
+    
     // Scroll to bottom of messages
     if (messageContainer) {
         messageContainer.scrollTop = messageContainer.scrollHeight;
@@ -394,24 +397,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success && !data.needs_moderation) {
                     // Create a message object for the sent message
                     const messageObj = {
-                        message_id: Date.now(), // Temporary ID until refresh
+                        message_id: data.message_id || Date.now(), // Use actual ID if provided
                         sender_id: <?= $user_id ?>,
                         content: formData.get('content'),
                         created_at: new Date().toISOString()
                     };
                     
-                    // Add the message to the UI
-                    addNewMessages([messageObj]);
-                    
-                    // If no messages were previously shown, remove the "No messages" message
-                    const noMessagesElement = messageContainer.querySelector('.text-center.text-muted.my-auto');
-                    if (noMessagesElement) {
+                    // If no messages were previously shown, ensure the container structure is set up correctly
+                    if (messageContainer.querySelector('.text-center.text-muted.my-auto')) {
                         messageContainer.innerHTML = '<div class="d-flex flex-column-reverse flex-grow-1"><div></div></div>';
                     }
+                    
+                    // Add the message to the UI
+                    addNewMessages([messageObj], true);
                 }
                 
-                // Check for new messages to get any that arrived while sending
-                setTimeout(checkForNewMessages, 500);
+                // Commenting out immediate check for new messages to prevent duplicate display
+                // setTimeout(checkForNewMessages, 500);
                 
                 // Handle any errors or notifications
                 if (!data.success) {
@@ -437,20 +439,54 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Function to add new messages to the container
-    function addNewMessages(messages) {
+    function addNewMessages(messages, isLocalMessage = false) {
         if (!messageContainer || !messages || messages.length === 0) return;
         
         let needsScroll = messageContainer.scrollTop + messageContainer.clientHeight >= messageContainer.scrollHeight - 100;
         let lastDate = '';
         let anyNewMessages = false;
         
-        const messagesWrapper = messageContainer.querySelector('.d-flex.flex-column-reverse > div');
+        let messagesWrapper = messageContainer.querySelector('.d-flex.flex-column-reverse > div');
+        
+        // If messagesWrapper is null, create the required container structure
+        if (!messagesWrapper) {
+            const flexContainer = document.createElement('div');
+            flexContainer.className = 'd-flex flex-column-reverse flex-grow-1';
+            
+            messagesWrapper = document.createElement('div');
+            flexContainer.appendChild(messagesWrapper);
+            
+            // Clear message container and add our new structure
+            messageContainer.innerHTML = '';
+            messageContainer.appendChild(flexContainer);
+        }
+        
+        // Track displayed content to prevent duplicate messages with different IDs
+        const displayedContent = new Set();
+        document.querySelectorAll('.message-bubble').forEach(el => {
+            // Get text content without the time element
+            const content = el.childNodes[0].textContent.trim();
+            displayedContent.add(content);
+        });
         
         messages.forEach(message => {
             // Check if message is already displayed (prevent duplicates)
             const messageId = `msg-${message.message_id}`;
-            if (document.getElementById(messageId)) {
-                return; // Skip if already displayed
+            const messageContent = message.content.trim();
+            
+            // Skip if ID exists or content already displayed (for recently sent messages)
+            if (document.getElementById(messageId) || 
+                (!isLocalMessage && displayedContent.has(messageContent))) {
+                return;
+            }
+            
+            // Update tracking variables
+            if (message.message_id > lastDisplayedMessageId) {
+                lastDisplayedMessageId = message.message_id;
+            }
+            
+            if (!isLocalMessage) {
+                displayedContent.add(messageContent);
             }
             
             anyNewMessages = true;
@@ -505,7 +541,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let checkMessagesInterval = setInterval(checkForNewMessages, 3000);
     
     function checkForNewMessages() {
-        fetch(`get_new_messages.php?user=<?= $selected_user_id ?>`)
+        fetch(`get_new_messages.php?user=<?= $selected_user_id ?>&last_id=${lastDisplayedMessageId}`)
             .then(response => response.json())
             .then(data => {
                 if (data.error) {

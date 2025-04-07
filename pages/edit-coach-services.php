@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = trim($_POST['name'] ?? '');
             $description = trim($_POST['description'] ?? '');
             $price = floatval($_POST['price'] ?? 0);
+            $is_popular = isset($_POST['is_popular']) ? 1 : 0;
             
             // Validate inputs
             if (empty($name)) {
@@ -64,10 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($errors)) {
                 try {
                     $stmt = $pdo->prepare("
-                        INSERT INTO ServiceTiers (coach_id, name, description, price)
-                        VALUES (?, ?, ?, ?)
+                        INSERT INTO ServiceTiers (coach_id, name, description, price, is_popular)
+                        VALUES (?, ?, ?, ?, ?)
                     ");
-                    $stmt->execute([$coach['coach_id'], $name, $description, $price]);
+                    $stmt->execute([$coach['coach_id'], $name, $description, $price, $is_popular]);
                     
                     $success = true;
                     $_SESSION['success_message'] = "Service tier added successfully";
@@ -87,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = trim($_POST['name'] ?? '');
             $description = trim($_POST['description'] ?? '');
             $price = floatval($_POST['price'] ?? 0);
+            $is_popular = isset($_POST['is_popular']) ? 1 : 0;
             
             // Validate inputs
             if (empty($name)) {
@@ -114,10 +116,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($count > 0) {
                         $stmt = $pdo->prepare("
                             UPDATE ServiceTiers 
-                            SET name = ?, description = ?, price = ?
+                            SET name = ?, description = ?, price = ?, is_popular = ?
                             WHERE tier_id = ?
                         ");
-                        $stmt->execute([$name, $description, $price, $tierId]);
+                        $stmt->execute([$name, $description, $price, $is_popular, $tierId]);
                         
                         $success = true;
                         $_SESSION['success_message'] = "Service tier updated successfully";
@@ -260,7 +262,12 @@ include '../includes/header.php';
                                 <div class="col-md-6 mb-4">
                                     <div class="card h-100">
                                         <div class="card-header d-flex justify-content-between align-items-center">
-                                            <h5 class="mb-0"><?= htmlspecialchars($tier['name']) ?></h5>
+                                            <h5 class="mb-0">
+                                                <?= htmlspecialchars($tier['name']) ?>
+                                                <?php if (isset($tier['is_popular']) && $tier['is_popular']): ?>
+                                                    <span class="badge bg-warning text-dark">Popular</span>
+                                                <?php endif; ?>
+                                            </h5>
                                             <div class="dropdown">
                                                 <button class="btn btn-sm btn-outline-secondary" type="button" id="dropdownMenuButton<?= $tier['tier_id'] ?>" data-bs-toggle="dropdown" aria-expanded="false">
                                                     <i class="bi bi-three-dots-vertical"></i>
@@ -324,6 +331,13 @@ include '../includes/header.php';
                                                                    step="0.01" min="1" value="<?= $tier['price'] ?>" required>
                                                         </div>
                                                         <small class="text-muted">Set competitive rates based on your experience level and market demand.</small>
+                                                    </div>
+                                                    <div class="mb-3 form-check">
+                                                        <input type="checkbox" class="form-check-input" id="edit_is_popular<?= $tier['tier_id'] ?>" name="is_popular" 
+                                                               <?= (isset($tier['is_popular']) && $tier['is_popular']) ? 'checked' : '' ?>>
+                                                        <label class="form-check-label" for="edit_is_popular<?= $tier['tier_id'] ?>">
+                                                            Mark as "Popular" (displays a special badge to clients)
+                                                        </label>
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">
@@ -476,6 +490,11 @@ include '../includes/header.php';
                                 <small class="text-muted">Set competitive rates based on your experience level and market demand.</small>
                             </div>
                             
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="is_popular" name="is_popular">
+                                <label class="form-check-label" for="is_popular">Mark as "Popular" (displays a special badge to clients)</label>
+                            </div>
+                            
                             <div class="card mb-3 mt-4">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0">Tips for Success</h6>
@@ -553,12 +572,49 @@ include '../includes/header.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Template buttons functionality
-    const basicTemplate = document.getElementById('basicTemplate');
-    const standardTemplate = document.getElementById('standardTemplate');
-    const premiumTemplate = document.getElementById('premiumTemplate');
-    const descriptionField = document.getElementById('description');
+    // Handle three-dots menu manually
+    document.querySelectorAll('.card-header .btn-outline-secondary').forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Get the dropdown menu related to this button
+            const dropdownMenu = this.nextElementSibling;
+            
+            // Close all other dropdown menus first
+            document.querySelectorAll('.dropdown-menu').forEach(function(menu) {
+                if (menu !== dropdownMenu) {
+                    menu.style.display = 'none';
+                }
+            });
+            
+            // Toggle this dropdown menu
+            if (dropdownMenu.style.display === 'block') {
+                dropdownMenu.style.display = 'none';
+            } else {
+                // Position the dropdown correctly
+                dropdownMenu.style.display = 'block';
+                dropdownMenu.style.position = 'absolute';
+                dropdownMenu.style.right = '0';
+                dropdownMenu.style.top = '100%';
+                dropdownMenu.style.zIndex = '1050';
+            }
+        });
+    });
+    
+    // Close all dropdowns when clicking elsewhere on the page
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.dropdown')) {
+            document.querySelectorAll('.dropdown-menu').forEach(function(menu) {
+                menu.style.display = 'none';
+            });
+        }
+    });
 
+    // Template buttons functionality
+    const descriptionField = document.getElementById('description');
+    const templateButtons = document.querySelectorAll('.description-template');
+    
     // Preview functionality
     const previewButton = document.getElementById('previewBeforeSave');
     const saveAfterPreviewButton = document.getElementById('saveAfterPreview');
@@ -611,22 +667,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Template functionality
-    if (basicTemplate) {
-        basicTemplate.addEventListener('click', function() {
-            descriptionField.value = `Basic coaching package includes:
+    // Template functionality - using template buttons with data-template attribute
+    if (templateButtons && templateButtons.length > 0) {
+        templateButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const template = this.getAttribute('data-template');
+                
+                if (template === 'basic') {
+                    descriptionField.value = `Basic coaching package includes:
 
 • One 45-minute coaching session
 • Basic learning materials
 • Email support for questions
 • Practice exercises
 • Session notes`;
-        });
-    }
-
-    if (standardTemplate) {
-        standardTemplate.addEventListener('click', function() {
-            descriptionField.value = `Enhance your learning with our standard package:
+                } else if (template === 'standard') {
+                    descriptionField.value = `Enhance your learning with our standard package:
 
 • One 60-minute comprehensive coaching session
 • Personalized learning plan and progress tracking
@@ -634,12 +690,8 @@ document.addEventListener('DOMContentLoaded', function() {
 • Unlimited email support between sessions
 • Access to supplementary learning materials
 • Session recordings for review`;
-        });
-    }
-
-    if (premiumTemplate) {
-        premiumTemplate.addEventListener('click', function() {
-            descriptionField.value = `Premium coaching experience includes:
+                } else if (template === 'premium') {
+                    descriptionField.value = `Premium coaching experience includes:
 
 • 90-minute intensive coaching session
 • Comprehensive learning plan with milestones
@@ -649,6 +701,8 @@ document.addEventListener('DOMContentLoaded', function() {
 • Session recordings with annotated notes
 • Additional 30-minute follow-up consultation
 • Access to exclusive learning resources`;
+                }
+            });
         });
     }
 });
