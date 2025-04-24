@@ -192,6 +192,37 @@ include __DIR__ . '/../includes/header.php';
                                 <strong>Rating:</strong>
                                 <p><?= isset($coach['rating']) && $coach['rating'] ? number_format($coach['rating'], 1) . ' / 5.0' : 'No ratings yet' ?></p>
                             </div>
+                            
+                            <!-- Revenue information -->
+                            <div class="mb-2">
+                                <strong>Revenue:</strong>
+                                <p>
+                                    <?php
+                                    if (isset($coach['coach_id'])) {
+                                        try {
+                                            // Get revenue from completed sessions
+                                            $stmt = $pdo->prepare("
+                                                SELECT 
+                                                    COUNT(DISTINCT s.session_id) as completed_sessions,
+                                                    IFNULL(SUM(st.price), 0) as total_revenue
+                                                FROM Sessions s
+                                                JOIN ServiceTiers st ON s.tier_id = st.tier_id
+                                                WHERE s.coach_id = ? AND s.status = 'completed'
+                                            ");
+                                            $stmt->execute([$coach['coach_id']]);
+                                            $revenueData = $stmt->fetch(PDO::FETCH_ASSOC);
+                                            
+                                            echo '$' . number_format($revenueData['total_revenue'], 2) . ' (' . $revenueData['completed_sessions'] . ' sessions)';
+                                        } catch (PDOException $e) {
+                                            echo '$0.00 (0 sessions)';
+                                        }
+                                    } else {
+                                        echo '$0.00 (0 sessions)';
+                                    }
+                                    ?>
+                                </p>
+                            </div>
+                            
                         <?php else: ?>
                             <div class="alert alert-info">
                                 <p>You haven't set up your coach profile yet.</p>

@@ -224,8 +224,9 @@ try {
 // Build the search query
 try {
     $params = [];
+    $where_clauses = []; // Initialize the array ONCE here
     $sql = "
-        SELECT c.*, u.username, u.profile_image, u.bio
+        SELECT DISTINCT c.*, u.username, u.profile_image, u.bio
         FROM Coaches c
         JOIN Users u ON c.user_id = u.user_id
     ";
@@ -236,19 +237,24 @@ try {
               LEFT JOIN Skills s_search ON cs_search.skill_id = s_search.skill_id
               LEFT JOIN Expertise_Categories ec_search ON s_search.category_id = ec_search.category_id";
     
-    // Skills selection requires a separate join
+    // Skills selection requires a separate join but make it a LEFT JOIN to ensure we don't lose coaches
     if (!empty($selected_skills)) {
-        $sql .= " JOIN Coach_Skills cs ON c.coach_id = cs.coach_id";
+        // Use COUNT to ensure we match ALL selected skills, not just ANY
+        $placeholders = implode(',', array_fill(0, count($selected_skills), '?'));
+        $skill_count_sql = "(SELECT COUNT(DISTINCT skill_id) FROM Coach_Skills WHERE coach_id = c.coach_id AND skill_id IN ($placeholders)) = ?";
+        $where_clauses[] = $skill_count_sql;
+        $params = array_merge($params, $selected_skills, [count($selected_skills)]);
     }
     
     // Category selection requires its own join
     if (!empty($selected_category)) {
-        $sql .= " JOIN Coach_Skills cs2 ON c.coach_id = cs2.coach_id
-                  JOIN Skills s ON cs2.skill_id = s.skill_id
-                  JOIN Expertise_Categories ec ON s.category_id = ec.category_id";
+        $sql .= " LEFT JOIN Coach_Skills cs2 ON c.coach_id = cs2.coach_id
+                  LEFT JOIN Skills s ON cs2.skill_id = s.skill_id
+                  LEFT JOIN Expertise_Categories ec ON s.category_id = ec.category_id";
+        
+        $where_clauses[] = "ec.category_id = ?";
+        $params[] = $selected_category;
     }
-    
-    $where_clauses = [];
     
     // Filter by search query - changed to use OR logic between text fields and skills
     if (!empty($search_query)) {
@@ -281,6 +287,10 @@ try {
             $term_condition[] = "ec_search.category_name LIKE ?";
             $params[] = $search_param;
             
+            // Add custom category search
+            $term_condition[] = "c.custom_category LIKE ?";
+            $params[] = $search_param;
+            
             // Add this term's conditions
             $search_conditions[] = "(" . implode(" OR ", $term_condition) . ")";
         }
@@ -291,18 +301,13 @@ try {
         }
     }
     
-    // Filter by category
+    // Category selection requires its own join - this is now done above
     if (!empty($selected_category)) {
         $where_clauses[] = "ec.category_id = ?";
         $params[] = $selected_category;
     }
     
-    // Filter by skills
-    if (!empty($selected_skills)) {
-        $placeholders = implode(',', array_fill(0, count($selected_skills), '?'));
-        $where_clauses[] = "cs.skill_id IN ($placeholders)";
-        $params = array_merge($params, $selected_skills);
-    }
+    // Skills selection - already handled above in a way that ensures matching ALL skills
     
     // Filter by minimum rating
     if ($min_rating > 0) {
@@ -327,27 +332,6 @@ try {
     // Add WHERE clause if we have conditions
     if (!empty($where_clauses)) {
         $sql .= " WHERE " . implode(" AND ", $where_clauses);
-    }
-    
-    // If search query is provided, also match against custom_category field
-    if (!empty($search_query)) {
-        $search_terms = explode(' ', strtolower(trim($search_query)));
-        
-        // Additional check for custom categories
-        $custom_category_clauses = [];
-        foreach ($search_terms as $term) {
-            if (strlen($term) < 2) continue;
-            $custom_category_clauses[] = "LOWER(c.custom_category) LIKE ?";
-            $params[] = "%" . strtolower($term) . "%";
-        }
-        
-        if (!empty($custom_category_clauses)) {
-            if (!empty($where_clauses)) {
-                $sql .= " OR ((" . implode(" OR ", $custom_category_clauses) . ") AND c.custom_category IS NOT NULL)";
-            } else {
-                $sql .= " WHERE ((" . implode(" OR ", $custom_category_clauses) . ") AND c.custom_category IS NOT NULL)";
-            }
-        }
     }
     
     // Add GROUP BY to prevent duplicates
@@ -593,9 +577,26 @@ include '../includes/header.php';
         
         <!-- Search Results -->
         <div class="col-md-9">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="h4 mb-0">Coaches (<?= count($coaches) ?>)</h2>
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <?php if (!empty($coaches)): ?>
+                            <?= count($coaches) ?> Coach<?= count($coaches) > 1 ? 'es' : '' ?> Found
+                        <?php else: ?>
+                            Coaches
+                        <?php endif; ?>
+                    </h5>
+                    
+                    <!-- Sort controls moved to header for better visibility -->
+                    <div class="d-flex align-items-center">
+                        <label for="sort_by" class="text-white me-2 mb-0">Sort:</label>
+                        <select id="sort_by" name="sort_by" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                            <option value="relevance" <?= $sort_by === 'relevance' ? 'selected' : '' ?>>Most Relevant</option>
+                            <option value="rating_desc" <?= $sort_by === 'rating_desc' ? 'selected' : '' ?>>Highest Rated</option>
+                            <option value="price_asc" <?= $sort_by === 'price_asc' ? 'selected' : '' ?>>Price: Low to High</option>
+                            <option value="price_desc" <?= $sort_by === 'price_desc' ? 'selected' : '' ?>>Price: High to Low</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="card-body">
                     <?php if (empty($coaches)): ?>
@@ -651,6 +652,7 @@ include '../includes/header.php';
                                         <div class="card-body">
                                             <div class="d-flex mb-3">
                                                 <?php 
+                                                // Profile image handling with fallbacks
                                                 $profile_image = $coach['profile_image'] ?? 'default.jpg';
                                                 $image_path = "/assets/images/profiles/{$profile_image}";
                                                 $default_image = "/assets/images/profiles/default.jpg";
@@ -666,7 +668,7 @@ include '../includes/header.php';
                                                     $display_image = $default_image;
                                                 } else {
                                                     // Fallback to a reliable external avatar generator
-                                                    $display_image = "https://ui-avatars.com/api/?name=" . urlencode($coach['username']) . "&background=random&size=64";
+                                                    $display_image = "https://ui-avatars.com/api/?name=" . urlencode($coach['username']) . "&background=random";
                                                 }
                                                 ?>
                                                 

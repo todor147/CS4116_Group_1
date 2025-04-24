@@ -116,7 +116,7 @@ include('../includes/header.php');
                         How do I reset my password?
                     </button>
                 </h3>
-                <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accountAccordion">
+                <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne">
                     <div class="accordion-body">
                         <p>To reset your password:</p>
                         <ol>
@@ -136,7 +136,7 @@ include('../includes/header.php');
                         How do I update my profile information?
                     </button>
                 </h3>
-                <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accountAccordion">
+                <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo">
                     <div class="accordion-body">
                         <p>To update your profile information:</p>
                         <ol>
@@ -156,7 +156,7 @@ include('../includes/header.php');
                         How do I delete my account?
                     </button>
                 </h3>
-                <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accountAccordion">
+                <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree">
                     <div class="accordion-body">
                         <p>To delete your EduCoach account:</p>
                         <ol>
@@ -184,7 +184,7 @@ include('../includes/header.php');
                         How do I book a session with a coach?
                     </button>
                 </h3>
-                <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#bookingAccordion">
+                <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour">
                     <div class="accordion-body">
                         <p>To book a session with a coach:</p>
                         <ol>
@@ -207,7 +207,7 @@ include('../includes/header.php');
                         How do I join a scheduled session?
                     </button>
                 </h3>
-                <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#bookingAccordion">
+                <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive">
                     <div class="accordion-body">
                         <p>To join your scheduled session:</p>
                         <ol>
@@ -229,7 +229,7 @@ include('../includes/header.php');
                         How do I cancel or reschedule a session?
                     </button>
                 </h3>
-                <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix" data-bs-parent="#bookingAccordion">
+                <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix">
                     <div class="accordion-body">
                         <p>To cancel or reschedule a session:</p>
                         <ol>
@@ -266,7 +266,7 @@ include('../includes/header.php');
                         What payment methods do you accept?
                     </button>
                 </h3>
-                <div id="collapseSeven" class="accordion-collapse collapse" aria-labelledby="headingSeven" data-bs-parent="#paymentAccordion">
+                <div id="collapseSeven" class="accordion-collapse collapse" aria-labelledby="headingSeven">
                     <div class="accordion-body">
                         <p>EduCoach accepts the following payment methods:</p>
                         <ul>
@@ -285,7 +285,7 @@ include('../includes/header.php');
                         How do I update my billing information?
                     </button>
                 </h3>
-                <div id="collapseEight" class="accordion-collapse collapse" aria-labelledby="headingEight" data-bs-parent="#paymentAccordion">
+                <div id="collapseEight" class="accordion-collapse collapse" aria-labelledby="headingEight">
                     <div class="accordion-body">
                         <p>To update your billing information:</p>
                         <ol>
@@ -308,7 +308,7 @@ include('../includes/header.php');
                         How do subscriptions work?
                     </button>
                 </h3>
-                <div id="collapseNine" class="accordion-collapse collapse" aria-labelledby="headingNine" data-bs-parent="#paymentAccordion">
+                <div id="collapseNine" class="accordion-collapse collapse" aria-labelledby="headingNine">
                     <div class="accordion-body">
                         <p>EduCoach offers subscription plans that provide benefits like discounted session rates, priority booking, and access to premium features.</p>
                         <p><strong>Subscription Details:</strong></p>
@@ -531,6 +531,56 @@ document.addEventListener('DOMContentLoaded', function() {
         link.addEventListener('click', function() {
             searchInput.value = '';
             resetSearch();
+        });
+    });
+});
+</script>
+
+<!-- Modified Accordion Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Fix accordion to allow multiple items to be open at once
+    const accordionElements = document.querySelectorAll('.accordion');
+    
+    accordionElements.forEach(accordion => {
+        // Remove data-bs-parent attribute to allow multiple items open at once
+        const items = accordion.querySelectorAll('.accordion-item');
+        items.forEach(item => {
+            const collapseElement = item.querySelector('.accordion-collapse');
+            if (collapseElement) {
+                // Remove the parent reference to allow multiple open items
+                collapseElement.removeAttribute('data-bs-parent');
+            }
+        });
+    });
+    
+    // Fix "Read More" links to prevent scrolling to the top
+    const readMoreLinks = document.querySelectorAll('.card a.btn-outline-primary');
+    readMoreLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Find closest card and add a class to show extended content
+            const card = this.closest('.card');
+            if (card) {
+                const cardBody = card.querySelector('.card-body');
+                const cardText = cardBody.querySelector('.card-text');
+                
+                if (this.textContent === 'Read More') {
+                    this.textContent = 'Show Less';
+                    if (!cardText.dataset.originalHeight) {
+                        cardText.dataset.originalHeight = cardText.clientHeight + 'px';
+                        cardText.style.maxHeight = cardText.dataset.originalHeight;
+                    }
+                    
+                    // Expand content
+                    cardText.style.maxHeight = 'none';
+                } else {
+                    this.textContent = 'Read More';
+                    // Collapse content
+                    cardText.style.maxHeight = cardText.dataset.originalHeight;
+                }
+            }
         });
     });
 });

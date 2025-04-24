@@ -6,7 +6,35 @@
  * @return bool True if email is valid, false otherwise
  */
 function isValidEmail($email) {
-    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+    // First use PHP's filter_var for basic validation
+    if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+        return false;
+    }
+
+    // Additional validation for more strict email format
+    // Check if the domain has at least one dot
+    $parts = explode('@', $email);
+    if (count($parts) !== 2) {
+        return false;
+    }
+    
+    $domain = $parts[1];
+    if (strpos($domain, '.') === false) {
+        return false;
+    }
+    
+    // Check for common disposable email domains - expand this list as needed
+    $disallowed_domains = [
+        // Add domains if you want to block disposable email providers
+    ];
+    
+    foreach ($disallowed_domains as $disallowed) {
+        if (stripos($domain, $disallowed) !== false) {
+            return false;
+        }
+    }
+    
+    return true;
 }
 
 /**
@@ -60,7 +88,31 @@ function isValidPassword($password) {
  * @return bool True if username is valid, false otherwise
  */
 function isValidUsername($username) {
-    return preg_match('/^[a-zA-Z0-9_-]{3,30}$/', $username);
+    // Length check - between 3 and 30 characters
+    if (strlen(trim($username)) < 3 || strlen(trim($username)) > 30) {
+        return false;
+    }
+    
+    // Character validation - only letters, numbers, underscores, and hyphens
+    if (!preg_match('/^[a-zA-Z0-9_-]+$/', $username)) {
+        return false;
+    }
+    
+    // Prevent usernames with only special characters
+    if (!preg_match('/[a-zA-Z0-9]/', $username)) {
+        return false;
+    }
+    
+    // Prevent common fake usernames
+    $disallowed_usernames = [
+        'admin', 'administrator', 'system', 'root', 'superuser', 'support'
+    ];
+    
+    if (in_array(strtolower($username), $disallowed_usernames)) {
+        return false;
+    }
+    
+    return true;
 }
 
 /**
