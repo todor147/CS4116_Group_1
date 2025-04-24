@@ -127,17 +127,15 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
                     <li class="nav-item">
                         <a class="nav-link <?= $current_page === 'home.php' ? 'active' : '' ?>" href="home.php">Home</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link <?= $current_page === 'coach-search.php' ? 'active' : '' ?>" href="coach-search.php">Find Coaches</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="coach-search.php?sort_by=rating_desc">Highest Rated</a>
-                    </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            Categories
+                        <a class="nav-link dropdown-toggle <?= $current_page === 'coach-search.php' ? 'active' : '' ?>" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Find Coaches
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                            <li><a class="dropdown-item" href="coach-search.php">All Coaches</a></li>
+                            <li><a class="dropdown-item" href="coach-search.php?sort_by=rating_desc">Highest Rated</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Categories</h6></li>
                             <li><a class="dropdown-item" href="coach-search.php?category=1">Mathematics</a></li>
                             <li><a class="dropdown-item" href="coach-search.php?category=2">Languages</a></li>
                             <li><a class="dropdown-item" href="coach-search.php?category=3">Sciences</a></li>

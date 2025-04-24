@@ -60,7 +60,9 @@ include('../includes/header.php');
             <a href="become-coach.php" class="btn btn-primary">Become a Coach</a>
         </div>
         <div class="col-lg-6">
-            <img src="https://source.unsplash.com/random/600x400/?community" class="img-fluid rounded shadow" alt="Community meeting">
+            <p>Connect with thousands of coaches from around the world, share resources, attend virtual events, and grow together in our vibrant coaching community.</p>
+            <p>Whether you're an experienced educator or just starting your coaching journey, the EduCoach community offers valuable connections and resources to help you succeed.</p>
+            <img src="<?= file_exists($_SERVER['DOCUMENT_ROOT'] . '/assets/images/community-banner.jpg') ? '/assets/images/community-banner.jpg' : 'https://ui-avatars.com/api/?name=Community&size=400&background=random' ?>" class="img-fluid rounded shadow" alt="Community meeting">
         </div>
     </div>
 
@@ -131,9 +133,18 @@ include('../includes/header.php');
                         <p class="card-text">A vibrant group for language tutors to share teaching methods, cultural insights, and resources for effective language acquisition.</p>
                         <div class="d-flex align-items-center mt-3">
                             <div class="avatar-group">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait1" class="rounded-circle me-1" width="30" height="30" alt="Member">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait2" class="rounded-circle me-1" width="30" height="30" alt="Member">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait3" class="rounded-circle me-1" width="30" height="30" alt="Member">
+                                <?php 
+                                function getProfileImage($index) {
+                                    $default = '/assets/images/profiles/default.jpg';
+                                    // Use UI Avatars as reliable fallback
+                                    return file_exists($_SERVER['DOCUMENT_ROOT'] . $default) ? 
+                                        $default : 
+                                        "https://ui-avatars.com/api/?name=User" . $index . "&background=random&size=100";
+                                }
+                                ?>
+                                <img src="<?= getProfileImage(1) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
+                                <img src="<?= getProfileImage(2) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
+                                <img src="<?= getProfileImage(3) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
                                 <span class="rounded-circle bg-light text-dark d-inline-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 12px;">+497</span>
                             </div>
                             <span class="ms-auto badge bg-light text-dark">
@@ -151,9 +162,9 @@ include('../includes/header.php');
                         <p class="card-text">Connect with science, technology, engineering, and mathematics coaches to share interactive teaching tools and latest research.</p>
                         <div class="d-flex align-items-center mt-3">
                             <div class="avatar-group">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait4" class="rounded-circle me-1" width="30" height="30" alt="Member">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait5" class="rounded-circle me-1" width="30" height="30" alt="Member">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait6" class="rounded-circle me-1" width="30" height="30" alt="Member">
+                                <img src="<?= getProfileImage(4) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
+                                <img src="<?= getProfileImage(5) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
+                                <img src="<?= getProfileImage(6) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
                                 <span class="rounded-circle bg-light text-dark d-inline-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 12px;">+747</span>
                             </div>
                             <span class="ms-auto badge bg-light text-dark">
@@ -171,9 +182,9 @@ include('../includes/header.php');
                         <p class="card-text">A professional network for coaches specializing in career development, entrepreneurship, and professional skills training.</p>
                         <div class="d-flex align-items-center mt-3">
                             <div class="avatar-group">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait7" class="rounded-circle me-1" width="30" height="30" alt="Member">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait8" class="rounded-circle me-1" width="30" height="30" alt="Member">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait9" class="rounded-circle me-1" width="30" height="30" alt="Member">
+                                <img src="<?= getProfileImage(7) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
+                                <img src="<?= getProfileImage(8) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
+                                <img src="<?= getProfileImage(9) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
                                 <span class="rounded-circle bg-light text-dark d-inline-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 12px;">+597</span>
                             </div>
                             <span class="ms-auto badge bg-light text-dark">
@@ -191,9 +202,9 @@ include('../includes/header.php');
                         <p class="card-text">A creative space for music, art, writing, and performing arts coaches to share inspiration and teaching methodologies.</p>
                         <div class="d-flex align-items-center mt-3">
                             <div class="avatar-group">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait10" class="rounded-circle me-1" width="30" height="30" alt="Member">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait11" class="rounded-circle me-1" width="30" height="30" alt="Member">
-                                <img src="https://source.unsplash.com/random/100x100/?portrait12" class="rounded-circle me-1" width="30" height="30" alt="Member">
+                                <img src="<?= getProfileImage(10) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
+                                <img src="<?= getProfileImage(11) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
+                                <img src="<?= getProfileImage(12) ?>" class="rounded-circle me-1" width="30" height="30" alt="Member" style="object-fit: cover;">
                                 <span class="rounded-circle bg-light text-dark d-inline-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 12px;">+447</span>
                             </div>
                             <span class="ms-auto badge bg-light text-dark">
@@ -301,7 +312,7 @@ include('../includes/header.php');
                     <div class="card-body p-4">
                         <p class="card-text lead mb-4">"The EduCoach community has been instrumental in my growth as an online educator. The resources shared and connections made have helped me improve my teaching methods and grow my business."</p>
                         <div class="d-flex align-items-center">
-                            <img src="https://source.unsplash.com/random/100x100/?portrait" class="rounded-circle me-3" width="50" height="50" alt="Coach portrait">
+                            <img src="<?= getProfileImage('maria') ?>" class="rounded-circle me-3" width="50" height="50" alt="Coach portrait" style="object-fit: cover;">
                             <div>
                                 <h5 class="card-title mb-0">Maria Santos</h5>
                                 <p class="text-muted mb-0">Language Coach, Member since 2021</p>
@@ -315,10 +326,10 @@ include('../includes/header.php');
                     <div class="card-body p-4">
                         <p class="card-text lead mb-4">"Being part of the STEM Educators Hub has connected me with brilliant minds across the globe. The collaborative projects and resource sharing have elevated my teaching to a whole new level."</p>
                         <div class="d-flex align-items-center">
-                            <img src="https://source.unsplash.com/random/100x100/?man" class="rounded-circle me-3" width="50" height="50" alt="Coach portrait">
+                            <img src="<?= getProfileImage('david') ?>" class="rounded-circle me-3" width="50" height="50" alt="Coach portrait" style="object-fit: cover;">
                             <div>
-                                <h5 class="card-title mb-0">James Kim</h5>
-                                <p class="text-muted mb-0">Physics Coach, Member since 2022</p>
+                                <h5 class="card-title mb-0">David Chen</h5>
+                                <p class="text-muted mb-0">Physics Coach, Member since 2020</p>
                             </div>
                         </div>
                     </div>

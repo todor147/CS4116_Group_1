@@ -5,6 +5,18 @@ require_once('../includes/notification_functions.php');
 
 $title = "Success Stories | EduCoach";
 include('../includes/header.php');
+
+// Function to get coach profile image with fallback
+function getCoachImage($name) {
+    $localPath = "../assets/images/coaches/" . strtolower($name) . ".jpg";
+    
+    if (file_exists($localPath)) {
+        return $localPath;
+    } else {
+        // Fallback to UI Avatars if local image not found
+        return "https://ui-avatars.com/api/?name=" . urlencode($name) . "&size=200&background=random";
+    }
+}
 ?>
 
 <div class="container py-5">
@@ -17,7 +29,7 @@ include('../includes/header.php');
     <div class="card mb-5 border-0 shadow">
         <div class="row g-0">
             <div class="col-md-5">
-                <img src="https://source.unsplash.com/random/800x1000/?teacher" class="img-fluid rounded-start h-100 object-fit-cover" alt="Featured Coach">
+                <img src="<?php echo getCoachImage('Sarah Johnson'); ?>" class="img-fluid rounded-start h-100 object-fit-cover" alt="Featured Coach">
             </div>
             <div class="col-md-7">
                 <div class="card-body p-4 p-lg-5">

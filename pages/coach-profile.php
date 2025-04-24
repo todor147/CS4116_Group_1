@@ -73,6 +73,18 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                     $average_rating = $rating_data['avg_rating'] ? round($rating_data['avg_rating'] * 2) / 2 : 0;
                     $review_count = $rating_data['review_count'];
                 }
+                
+                // Also get rating value directly from the coach table for comparison
+                // This ensures consistency with the values shown in search results
+                if ($coach && isset($coach['rating']) && $coach['rating'] > 0) {
+                    // If coach table has a rating but reviews don't, use coach table value
+                    if ($average_rating == 0) {
+                        $average_rating = $coach['rating'];
+                        // Default to at least 1 review if we have a rating but no review count
+                        $review_count = $review_count > 0 ? $review_count : 1;
+                    }
+                }
+                
             } catch (PDOException $e) {
                 // Just log the error, don't stop page from loading
                 error_log("Error getting ratings: " . $e->getMessage());
@@ -159,7 +171,9 @@ include __DIR__ . '/../includes/header.php';
 }
 
 .service-card .card-header {
-    border-bottom: 1px solid rgba(0,0,0,0.1);
+    position: relative;
+    z-index: 2;
+    padding-right: 35px; /* Give space for the ribbon */
 }
 
 .service-card .service-description {
@@ -177,8 +191,8 @@ include __DIR__ . '/../includes/header.php';
     position: absolute;
     top: 0;
     right: 0;
-    width: 150px;
-    height: 150px;
+    width: 120px;
+    height: 120px;
     overflow: hidden;
     z-index: 1;
 }
@@ -186,8 +200,8 @@ include __DIR__ . '/../includes/header.php';
 .ribbon span {
     position: absolute;
     display: block;
-    width: 225px;
-    padding: 8px 0;
+    width: 170px;
+    padding: 5px 0;
     background-color: #3d6bfd;
     color: #fff;
     text-align: center;
@@ -196,7 +210,7 @@ include __DIR__ . '/../includes/header.php';
     box-shadow: 0 5px 10px rgba(0,0,0,0.1);
     transform: rotate(45deg);
     right: -25px;
-    top: 45px;
+    top: 30px;
     text-transform: uppercase;
 }
 
@@ -596,16 +610,14 @@ include __DIR__ . '/../includes/header.php';
             <?php endif; ?>
         </div>
 
-        <div class="d-flex justify-content-between mt-3">
-            <?php if ($coach && $coach['coach_id'] && isset($_SESSION['user_id']) && $_SESSION['user_id'] != $coach['user_id']): ?>
-                <a href="book.php?coach_id=<?= $coach['coach_id'] ?>" class="btn btn-primary">
-                    <i class="bi bi-calendar-plus"></i> Book a Session
-                </a>
-                <a href="messages.php?receiver_id=<?= $coach['user_id'] ?>" class="btn btn-outline-primary ms-2">
+        <!-- Contact coach button only, no duplicate booking button -->
+        <?php if ($coach && $coach['coach_id'] && isset($_SESSION['user_id']) && $_SESSION['user_id'] != $coach['user_id']): ?>
+            <div class="d-flex justify-content-center mt-3">
+                <a href="messages.php?receiver_id=<?= $coach['user_id'] ?>" class="btn btn-outline-primary">
                     <i class="bi bi-chat-dots"></i> Contact Coach
                 </a>
-            <?php endif; ?>
-        </div>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
 
