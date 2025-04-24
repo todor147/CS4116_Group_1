@@ -13,6 +13,23 @@ $success = '';
 $selected_coach_id = $_GET['coach_id'] ?? null;
 $selected_tier_id = $_GET['tier_id'] ?? null;
 $selected_date = $_GET['date'] ?? date('Y-m-d');
+
+// Handle calendar view parameters
+$view_month = isset($_GET['view_month']) ? intval($_GET['view_month']) : null;
+$view_year = isset($_GET['view_year']) ? intval($_GET['view_year']) : null;
+
+// Set calendar display variables
+if ($view_month !== null && $view_year !== null) {
+    // Use the view parameters for calendar display
+    $calendar_month = $view_month;
+    $calendar_year = $view_year;
+} else {
+    // Use the selected date for calendar display
+    $date_parts = explode('-', $selected_date);
+    $calendar_year = intval($date_parts[0]);
+    $calendar_month = intval($date_parts[1]) - 1; // Convert to 0-based month for JavaScript
+}
+
 $coach_details = null;
 $service_details = null;
 $available_time_slots = [];
@@ -428,16 +445,23 @@ include __DIR__ . '/../includes/header.php';
 .calendar-grid {
     border-top: 1px solid #dee2e6;
     border-left: 1px solid #dee2e6;
+    width: 100%;
 }
 
 .week-row {
     border-bottom: 1px solid #dee2e6;
+    display: flex;
 }
 
 .calendar-day {
     border-right: 1px solid #dee2e6;
     min-height: 40px;
     position: relative;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
 }
 
 .calendar-day.today {
@@ -449,6 +473,11 @@ include __DIR__ . '/../includes/header.php';
     cursor: pointer;
     text-decoration: none;
     color: var(--bs-primary);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .calendar-day.available .date-link:hover {
@@ -681,8 +710,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const currentDate = new Date();
         const selectedDate = '<?= $selected_date ?>';
         
+        // Use PHP-provided calendar month/year if available
+        const calendarMonth = <?= isset($calendar_month) ? $calendar_month : 'null' ?>;
+        const calendarYear = <?= isset($calendar_year) ? $calendar_year : 'null' ?>;
+        
         // Create calendar HTML
-        const monthYear = new Date(selectedDate || currentDate);
+        let monthYear;
+        if (calendarMonth !== null && calendarYear !== null) {
+            monthYear = new Date(calendarYear, calendarMonth, 1);
+        } else {
+            monthYear = new Date(selectedDate || currentDate);
+        }
+        
         const month = monthYear.getMonth();
         const year = monthYear.getFullYear();
         
@@ -708,6 +747,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Calendar grid
         calendarHtml += '<div class="calendar-grid">';
+        
+        // Get URL parameters for links
+        const urlParams = new URLSearchParams(window.location.search);
+        const baseUrl = window.location.pathname;
         
         // Get first day of month
         const firstDay = new Date(year, month, 1);
@@ -747,11 +790,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Create link if day is available
                     if (isAvailable) {
-                        const coachId = new URLSearchParams(window.location.search).get('coach_id');
-                        const tierId = new URLSearchParams(window.location.search).get('tier_id');
+                        // Create simple URL for date selection
+                        const dateUrl = `${baseUrl}?coach_id=${urlParams.get('coach_id')}&tier_id=${urlParams.get('tier_id')}&date=${formattedDate}`;
+                        
                         calendarHtml += `
                             <div class="${cellClasses}">
-                                <a href="?coach_id=${coachId}&tier_id=${tierId}&date=${formattedDate}" 
+                                <a href="${dateUrl}" 
                                    class="d-block px-2 py-1 rounded date-link ${isSelected ? 'bg-primary text-white' : ''}"
                                    data-date="${formattedDate}">
                                     ${date}
@@ -781,21 +825,43 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add month navigation
         document.getElementById('prev-month').addEventListener('click', function() {
+            // Get existing URL parameters
+            const baseUrl = window.location.pathname;
             const urlParams = new URLSearchParams(window.location.search);
             const coachId = urlParams.get('coach_id');
             const tierId = urlParams.get('tier_id');
-            const newDate = new Date(year, month - 1, 1);
-            const formattedDate = newDate.toISOString().split('T')[0];
-            window.location.href = `?coach_id=${coachId}&tier_id=${tierId}&date=${formattedDate}`;
+            
+            // Calculate previous month
+            let prevMonth = month - 1;
+            let prevYear = year;
+            if (prevMonth < 0) {
+                prevMonth = 11;
+                prevYear--;
+            }
+            
+            // Create new URL with updated parameters
+            const newUrl = `${baseUrl}?coach_id=${coachId}&tier_id=${tierId}&view_month=${prevMonth}&view_year=${prevYear}`;
+            window.location.href = newUrl;
         });
         
         document.getElementById('next-month').addEventListener('click', function() {
+            // Get existing URL parameters
+            const baseUrl = window.location.pathname;
             const urlParams = new URLSearchParams(window.location.search);
             const coachId = urlParams.get('coach_id');
             const tierId = urlParams.get('tier_id');
-            const newDate = new Date(year, month + 1, 1);
-            const formattedDate = newDate.toISOString().split('T')[0];
-            window.location.href = `?coach_id=${coachId}&tier_id=${tierId}&date=${formattedDate}`;
+            
+            // Calculate next month
+            let nextMonth = month + 1;
+            let nextYear = year;
+            if (nextMonth > 11) {
+                nextMonth = 0;
+                nextYear++;
+            }
+            
+            // Create new URL with updated parameters
+            const newUrl = `${baseUrl}?coach_id=${coachId}&tier_id=${tierId}&view_month=${nextMonth}&view_year=${nextYear}`;
+            window.location.href = newUrl;
         });
     }
 });
