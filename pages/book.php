@@ -1,6 +1,7 @@
 <?php
 session_start();
 require __DIR__ . '/../includes/db_connection.php';
+require __DIR__ . '/../includes/notification_functions.php';
 
 // Redirect if not logged in
 if (!isset($_SESSION['logged_in']) || !isset($_SESSION['user_id'])) {
@@ -150,6 +151,44 @@ try {
             
             // Commit transaction
             $pdo->commit();
+            
+            // Get coach and learner information for notifications
+            $stmt = $pdo->prepare("
+                SELECT c.coach_id, u_coach.username as coach_name, u_learner.username as learner_name, 
+                       t.name as tier_name
+                FROM Coaches c
+                JOIN Users u_coach ON c.user_id = u_coach.user_id
+                JOIN Users u_learner ON u_learner.user_id = ?
+                JOIN ServiceTiers t ON t.tier_id = ?
+                WHERE c.coach_id = ?
+            ");
+            $stmt->execute([$learner_id, $tier_id, $coach_id]);
+            $booking_info = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($booking_info) {
+                // Create formatted date/time for notifications
+                $session_date = date('l, F j, Y', strtotime($slot['start_time']));
+                $session_time = date('g:i A', strtotime($slot['start_time']));
+                
+                // Notify the learner
+                $title = "Session Booked";
+                $message = "Your session with {$booking_info['coach_name']} ({$booking_info['tier_name']}) is scheduled for {$session_date} at {$session_time}";
+                $link = "view-session.php?id={$session_id}";
+                createNotification($pdo, $learner_id, $title, $message, $link, 'session');
+                
+                // Notify the coach
+                $coach_user_id = null;
+                $stmt = $pdo->prepare("SELECT user_id FROM Coaches WHERE coach_id = ?");
+                $stmt->execute([$coach_id]);
+                $coach = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($coach) {
+                    $coach_user_id = $coach['user_id'];
+                    $title = "New Session Booking";
+                    $message = "{$booking_info['learner_name']} has booked a {$booking_info['tier_name']} session with you for {$session_date} at {$session_time}";
+                    $link = "view-session.php?id={$session_id}";
+                    createNotification($pdo, $coach_user_id, $title, $message, $link, 'session');
+                }
+            }
             
             $success = 'Session booked successfully!';
             

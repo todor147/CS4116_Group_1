@@ -344,6 +344,8 @@ try {
         $sql .= " ORDER BY c.hourly_rate DESC";
     } elseif ($sort_by === 'rating_desc') {
         $sql .= " ORDER BY c.rating DESC";
+    } elseif ($sort_by === 'rating_asc') {
+        $sql .= " ORDER BY c.rating ASC";
     } else {
         // Default to relevance, which we'll calculate in PHP
         $sql .= " ORDER BY c.rating DESC"; // Fallback server-side sort
@@ -589,13 +591,44 @@ include '../includes/header.php';
                     
                     <!-- Sort controls moved to header for better visibility -->
                     <div class="d-flex align-items-center">
-                        <label for="sort_by" class="text-white me-2 mb-0">Sort:</label>
-                        <select id="sort_by" name="sort_by" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
-                            <option value="relevance" <?= $sort_by === 'relevance' ? 'selected' : '' ?>>Most Relevant</option>
-                            <option value="rating_desc" <?= $sort_by === 'rating_desc' ? 'selected' : '' ?>>Highest Rated</option>
-                            <option value="price_asc" <?= $sort_by === 'price_asc' ? 'selected' : '' ?>>Price: Low to High</option>
-                            <option value="price_desc" <?= $sort_by === 'price_desc' ? 'selected' : '' ?>>Price: High to Low</option>
-                        </select>
+                        <form method="get" action="" class="d-flex align-items-center" id="sortForm">
+                            <!-- Preserve existing search parameters -->
+                            <?php if (!empty($search_query)): ?>
+                                <input type="hidden" name="query" value="<?= htmlspecialchars($search_query) ?>">
+                            <?php endif; ?>
+                            
+                            <?php if (!empty($selected_category)): ?>
+                                <input type="hidden" name="category" value="<?= htmlspecialchars($selected_category) ?>">
+                            <?php endif; ?>
+                            
+                            <?php if (!empty($selected_skills)): ?>
+                                <?php foreach ($selected_skills as $skill_id): ?>
+                                    <input type="hidden" name="skills[]" value="<?= htmlspecialchars($skill_id) ?>">
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                            
+                            <?php if ($min_rating > 0): ?>
+                                <input type="hidden" name="min_rating" value="<?= htmlspecialchars($min_rating) ?>">
+                            <?php endif; ?>
+                            
+                            <?php if ($min_price > 0): ?>
+                                <input type="hidden" name="min_price" value="<?= htmlspecialchars($min_price) ?>">
+                            <?php endif; ?>
+                            
+                            <?php if ($max_price < 9999999): ?>
+                                <input type="hidden" name="max_price" value="<?= htmlspecialchars($max_price) ?>">
+                            <?php endif; ?>
+                            
+                            <label for="header_sort_by" class="text-white me-2 mb-0">Sort:</label>
+                            <select id="header_sort_by" name="sort_by" class="form-select form-select-sm" style="width: auto;">
+                                <option value="relevance" <?= $sort_by === 'relevance' ? 'selected' : '' ?>>Most Relevant</option>
+                                <option value="rating_desc" <?= $sort_by === 'rating_desc' ? 'selected' : '' ?>>Highest Rated</option>
+                                <option value="rating_asc" <?= $sort_by === 'rating_asc' ? 'selected' : '' ?>>Lowest Rated</option>
+                                <option value="price_asc" <?= $sort_by === 'price_asc' ? 'selected' : '' ?>>Price: Low to High</option>
+                                <option value="price_desc" <?= $sort_by === 'price_desc' ? 'selected' : '' ?>>Price: High to Low</option>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-light ms-2">Apply</button>
+                        </form>
                     </div>
                 </div>
                 <div class="card-body">
@@ -707,7 +740,12 @@ include '../includes/header.php';
                                             </div>
                                             
                                             <p class="card-text small">
-                                                <?= !empty($search_query) ? highlightMatchingTerms(substr($coach['bio'], 0, 150) . (strlen($coach['bio']) > 150 ? '...' : ''), $search_query) : htmlspecialchars(substr($coach['bio'], 0, 150)) . (strlen($coach['bio']) > 150 ? '...' : '') ?>
+                                                <?php
+                                                $bio = $coach['bio'] ?? ''; // Set empty string if bio is null
+                                                echo !empty($search_query) 
+                                                    ? highlightMatchingTerms(substr($bio, 0, 150) . (strlen($bio) > 150 ? '...' : ''), $search_query) 
+                                                    : htmlspecialchars(substr($bio, 0, 150)) . (strlen($bio) > 150 ? '...' : '');
+                                                ?>
                                             </p>
                                             
                                             <?php if (!empty($coach['top_skills'])): ?>

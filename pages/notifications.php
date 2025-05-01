@@ -13,6 +13,32 @@ $user_id = $_SESSION['user_id'];
 $error = '';
 $success = '';
 
+// Test notification creation (only in development)
+if (isset($_GET['test_notification']) && $_GET['test_notification'] == 1) {
+    try {
+        $test_title = "Test Notification";
+        $test_message = "This is a test notification created at " . date('Y-m-d H:i:s');
+        $test_link = "notifications.php";
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO Notifications
+            (user_id, title, message, link, created_at, is_read)
+            VALUES (?, ?, ?, ?, NOW(), 0)
+        ");
+        
+        if ($stmt->execute([$user_id, $test_title, $test_message, $test_link])) {
+            $success = "Test notification created successfully!";
+            error_log("Test notification created for user ID: $user_id");
+        } else {
+            $error = "Failed to create test notification.";
+            error_log("Failed to create test notification for user ID: $user_id");
+        }
+    } catch (PDOException $e) {
+        $error = "Database error: " . $e->getMessage();
+        error_log("Error creating test notification: " . $e->getMessage());
+    }
+}
+
 // Mark notification as read if ID is provided
 if (isset($_GET['mark_read']) && is_numeric($_GET['mark_read'])) {
     $notification_id = (int)$_GET['mark_read'];
@@ -83,19 +109,30 @@ try {
     $stmt->execute([$user_id]);
     $unread_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
     
+    // Debug log for unread count
+    error_log("User ID: $user_id - Unread notification count: $unread_count");
+    
     // Get notifications with pagination
     $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
     $per_page = 10;
     $offset = ($page - 1) * $per_page;
     
-    $stmt = $pdo->prepare("
+    $query = "
         SELECT * FROM Notifications 
         WHERE user_id = ? 
         ORDER BY created_at DESC
         LIMIT ? OFFSET ?
-    ");
+    ";
+    
+    // Debug log the query
+    error_log("Notifications query: " . $query);
+    
+    $stmt = $pdo->prepare($query);
     $stmt->execute([$user_id, $per_page, $offset]);
     $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Debug log notification count
+    error_log("Total notifications fetched: " . count($notifications));
     
     // Get total count for pagination
     $stmt = $pdo->prepare("
@@ -109,6 +146,7 @@ try {
     
 } catch (PDOException $e) {
     $error = "Database error: " . $e->getMessage();
+    error_log("Error fetching notifications: " . $e->getMessage());
 }
 
 // Include header

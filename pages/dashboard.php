@@ -2,6 +2,41 @@
 session_start();
 require __DIR__ . '/../includes/db_connection.php';
 
+// Helper function to get appropriate badge class for status
+function getStatusBadgeClass($status) {
+    switch (strtolower($status)) {
+        case 'pending':
+            return 'bg-warning';
+        case 'accepted':
+            return 'bg-success';
+        case 'completed':
+            return 'bg-info';
+        case 'cancelled':
+            return 'bg-secondary';
+        case 'rejected':
+            return 'bg-danger';
+        default:
+            return 'bg-light';
+    }
+}
+
+// Debug logging - store in server logs
+error_log("User loaded dashboard.php: " . (isset($_SESSION['username']) ? $_SESSION['username'] : 'not logged in'));
+if (isset($_SESSION['is_admin'])) {
+    error_log("Admin flag detected: " . ($_SESSION['is_admin'] ? 'true' : 'false'));
+}
+if (isset($_SESSION['user_type'])) {
+    error_log("User type: " . $_SESSION['user_type']);
+}
+
+// Redirect if user is an admin - this should take priority
+if ((isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true) || 
+    (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'admin')) {
+    error_log("Redirecting admin user to admin.php");
+    header('Location: admin.php');
+    exit;
+}
+
 // Redirect if not logged in
 if (!isset($_SESSION['logged_in']) || !isset($_SESSION['user_id'])) {
     header('Location: login.php');
@@ -286,12 +321,12 @@ include __DIR__ . '/../includes/header.php';
                     </h5>
                 </div>
                 <div class="card-body">
-                    <?php if (isset($inquiries) && count($inquiries) > 0): ?>
-                        <table class="table table-striped">
+                    <?php if (!empty($inquiries)): ?>
+                        <table class="table">
                             <thead>
                                 <tr>
                                     <th>Date</th>
-                                    <th><?= $is_coach ? 'From' : 'To' ?></th>
+                                    <th>From</th>
                                     <th>Service</th>
                                     <th>Status</th>
                                     <th>Actions</th>
@@ -299,35 +334,37 @@ include __DIR__ . '/../includes/header.php';
                             </thead>
                             <tbody>
                                 <?php foreach ($inquiries as $inquiry): ?>
-                                <tr>
-                                    <td><?= date('M d, Y', strtotime($inquiry['created_at'])) ?></td>
-                                    <td><?= htmlspecialchars($is_coach ? $inquiry['learner_name'] : $inquiry['coach_name']) ?></td>
-                                    <td><?= htmlspecialchars($inquiry['tier_name']) ?></td>
-                                    <td>
-                                        <span class="badge <?= 
-                                            $inquiry['status'] === 'pending' ? 'bg-warning' : 
-                                            ($inquiry['status'] === 'accepted' ? 'bg-success' : 
-                                            ($inquiry['status'] === 'completed' ? 'bg-info' : 'bg-danger')) 
-                                        ?>">
-                                            <?= ucfirst($inquiry['status']) ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <a href="inquiry-details.php?id=<?= $inquiry['inquiry_id'] ?>" class="btn btn-sm btn-outline-primary">View</a>
-                                    </td>
-                                </tr>
+                                    <tr>
+                                        <td><?= date('M j, Y', strtotime($inquiry['created_at'])) ?></td>
+                                        <td>
+                                            <?php if ($is_coach): ?>
+                                                <?= htmlspecialchars($inquiry['learner_name']) ?>
+                                            <?php else: ?>
+                                                <?= htmlspecialchars($inquiry['coach_name']) ?>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?= htmlspecialchars($inquiry['tier_name']) ?></td>
+                                        <td>
+                                            <span class="badge <?= getStatusBadgeClass($inquiry['status']) ?>">
+                                                <?= ucfirst($inquiry['status']) ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="inquiry-details.php?id=<?= $inquiry['inquiry_id'] ?>" class="btn btn-sm btn-outline-primary" onclick="window.location.href='inquiry-details.php?id=<?= $inquiry['inquiry_id'] ?>'; return false;">View</a>
+                                        </td>
+                                    </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
-                        <a href="insight-requests.php" class="btn btn-outline-primary">View All Inquiries</a>
                     <?php else: ?>
-                        <p>No inquiries found.</p>
-                        <?php if (!$is_coach): ?>
-                            <a href="search.php" class="btn btn-primary">Find a Coach</a>
+                        <p>No service inquiries found.</p>
                     <?php endif; ?>
-                    <?php endif; ?>
-                        </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="my-inquiries.php" class="btn btn-outline-primary" onclick="window.location.href='my-inquiries.php'; return false;">View All Inquiries</a>
                     </div>
+                </div>
+            </div>
 
             <!-- Upcoming Sessions - Both user types -->
             <div class="card mb-4">
@@ -335,8 +372,8 @@ include __DIR__ . '/../includes/header.php';
                     <h5 class="card-title mb-0">Upcoming Sessions</h5>
                 </div>
                 <div class="card-body">
-                    <?php if (isset($upcomingSessions) && count($upcomingSessions) > 0): ?>
-                        <table class="table table-striped">
+                    <?php if (!empty($upcomingSessions)): ?>
+                        <table class="table">
                             <thead>
                                 <tr>
                                     <th>Date & Time</th>
@@ -348,26 +385,67 @@ include __DIR__ . '/../includes/header.php';
                             </thead>
                             <tbody>
                                 <?php foreach ($upcomingSessions as $session): ?>
-                                <tr>
-                                    <td><?= date('M d, Y h:i A', strtotime($session['scheduled_time'])) ?></td>
-                                    <td><?= htmlspecialchars($is_coach ? $session['learner_name'] : $session['coach_name']) ?></td>
-                                    <td><?= htmlspecialchars($session['tier_name']) ?></td>
-                                    <td><?= $session['duration'] ?> min</td>
-                                    <td>
-                                        <a href="view-session.php?id=<?= $session['session_id'] ?>" class="btn btn-sm btn-outline-primary">View</a>
-                                    </td>
-                                </tr>
+                                    <tr>
+                                        <td><?= date('M j, Y h:i A', strtotime($session['scheduled_time'])) ?></td>
+                                        <td>
+                                            <?php if ($is_coach): ?>
+                                                <?= htmlspecialchars($session['learner_name']) ?>
+                                            <?php else: ?>
+                                                <?= htmlspecialchars($session['coach_name']) ?>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?= htmlspecialchars($session['tier_name']) ?></td>
+                                        <td><?= $session['duration'] ?? 60 ?> min</td>
+                                        <td>
+                                            <a href="view-session.php?id=<?= $session['session_id'] ?>" class="btn btn-sm btn-outline-primary">View</a>
+                                        </td>
+                                    </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
-                        <a href="session.php" class="btn btn-outline-primary">View All Sessions</a>
                     <?php else: ?>
                         <p>No upcoming sessions found.</p>
                     <?php endif; ?>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="session.php" class="btn btn-outline-primary">View All Sessions</a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+// Fix all View buttons across the page
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to fix all View buttons
+    function fixViewButtons() {
+        // Get all buttons with text "View"
+        document.querySelectorAll('a.btn').forEach(button => {
+            if (button.textContent.trim() === 'View') {
+                const href = button.getAttribute('href');
+                if (href) {
+                    // Replace onclick with direct navigation
+                    button.setAttribute('onclick', `window.location.href='${href}'; return false;`);
+                    
+                    // Add click event as fallback
+                    button.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.location.href = href;
+                    });
+                }
+            }
+        });
+    }
+
+    // Fix immediately
+    fixViewButtons();
+    
+    // Fix again after a slight delay (in case of dynamic content)
+    setTimeout(fixViewButtons, 500);
+});
+</script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?> 

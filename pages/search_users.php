@@ -85,7 +85,7 @@ include __DIR__ . '/../includes/header.php';
                                             <?php endif; ?>
                                         </div>
                                         <div class="ms-auto">
-                                            <a href="conversation.php?user=<?= $user['user_id'] ?>" class="btn btn-primary btn-sm">
+                                            <a href="messages.php?user=<?= $user['user_id'] ?>" class="btn btn-primary btn-sm">
                                                 <i class="bi bi-chat-dots-fill"></i> Message
                                             </a>
                                         </div>

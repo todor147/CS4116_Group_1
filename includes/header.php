@@ -154,14 +154,12 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
                 <ul class="navbar-nav">
                     <?php if (isset($_SESSION['logged_in'])): ?>
                         <li class="nav-item">
-                            <a class="nav-link position-relative <?= $current_page === 'notifications.php' ? 'active' : '' ?>" href="notifications.php">
+                            <a class="nav-link position-relative <?= $current_page === 'notifications.php' ? 'active' : '' ?>" href="notifications.php" id="notificationLink">
                                 <i class="bi bi-bell"></i>
-                                <?php if (isset($unread_notification_count) && $unread_notification_count > 0): ?>
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                    <?= $unread_notification_count > 99 ? '99+' : $unread_notification_count ?>
+                                <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger <?= (!isset($unread_notification_count) || $unread_notification_count <= 0) ? 'd-none' : '' ?>">
+                                    <?= isset($unread_notification_count) && $unread_notification_count > 0 ? ($unread_notification_count > 99 ? '99+' : $unread_notification_count) : '' ?>
                                     <span class="visually-hidden">unread notifications</span>
                                 </span>
-                                <?php endif; ?>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -261,6 +259,31 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
             });
         });
     });
+    </script>
+
+    <script>
+    // Add real-time notification checking
+    <?php if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])): ?>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check for new notifications every minute
+        setInterval(checkNotifications, 60000);
+        
+        function checkNotifications() {
+            fetch('check_notifications.php')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('notificationBadge');
+                    if (data.unread_count > 0) {
+                        badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+                        badge.classList.remove('d-none');
+                    } else {
+                        badge.classList.add('d-none');
+                    }
+                })
+                .catch(error => console.error('Error checking notifications:', error));
+        }
+    });
+    <?php endif; ?>
     </script>
 </body>
 </html> 
