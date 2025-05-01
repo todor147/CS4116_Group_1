@@ -17,7 +17,7 @@ $user_id = $_SESSION['user_id'];
 
 // Check if session ID is provided
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    echo "<div class='alert alert-danger'>Invalid session ID</div>";
+    $_SESSION['error_message'] = "Invalid session ID provided.";
     header('Location: session.php');
     exit;
 }
@@ -37,7 +37,7 @@ try {
             SELECT s.*, u.username as learner_name, u.email as learner_email, 
                    st.name as tier_name, st.price,
                    c.coach_id
-            FROM sessions s
+            FROM Sessions s
             JOIN Users u ON s.learner_id = u.user_id
             JOIN ServiceTiers st ON s.tier_id = st.tier_id
             JOIN Coaches c ON s.coach_id = c.coach_id
@@ -48,7 +48,7 @@ try {
             SELECT s.*, u.username as coach_name, u.email as coach_email, 
                    st.name as tier_name, st.price,
                    c.coach_id
-            FROM sessions s
+            FROM Sessions s
             JOIN Coaches c ON s.coach_id = c.coach_id
             JOIN Users u ON c.user_id = u.user_id
             JOIN ServiceTiers st ON s.tier_id = st.tier_id
@@ -60,7 +60,7 @@ try {
     $session = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$session) {
-        echo "<div class='alert alert-danger'>You don't have permission to view this session or it doesn't exist.</div>";
+        $_SESSION['error_message'] = "You don't have permission to view this session or it doesn't exist.";
         header('Location: session.php');
         exit;
     }
@@ -82,9 +82,15 @@ try {
 }
 
 // Handle AJAX requests first, before any HTML output
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Always set JSON content type for all responses
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    // Clean any previous output
+    if (ob_get_length()) ob_clean();
+    
+    // Set JSON response headers
     header('Content-Type: application/json');
+    header('Cache-Control: no-cache, must-revalidate');
+    header('Expires: 0');
+    
     $response = ['success' => false, 'message' => 'An error occurred'];
     
     try {
@@ -114,67 +120,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 
-                // Update the session status
-                $stmt = $pdo->prepare("UPDATE sessions SET status = ? WHERE session_id = ?");
-                if (!$stmt->execute([$newStatus, $session_id])) {
-                    throw new Exception('Failed to update session status');
-                }
-                
-                // If completing and rating provided, save the rating
-                if ($newStatus === 'completed' && isset($_POST['rating']) && !$is_coach) {
-                    $rating = (int)$_POST['rating'];
-                    $feedback = isset($_POST['feedback']) ? trim($_POST['feedback']) : '';
-                    
-                    if ($rating < 1 || $rating > 5) {
-                        throw new Exception('Rating must be between 1 and 5');
+                try {
+                    // Update the session status
+                    $stmt = $pdo->prepare("UPDATE Sessions SET status = ? WHERE session_id = ?");
+                    if (!$stmt->execute([$newStatus, $session_id])) {
+                        throw new Exception('Failed to update session status');
                     }
                     
-                    // Insert the review
-                    $stmt = $pdo->prepare("
-                        INSERT INTO Reviews (user_id, coach_id, session_id, rating, comment, created_at)
-                        VALUES (?, ?, ?, ?, ?, NOW())
-                    ");
-                    if (!$stmt->execute([$user_id, $session['coach_id'], $session_id, $rating, $feedback])) {
-                        throw new Exception('Failed to save rating');
-                    }
-                    
-                    // Update coach's average rating
-                    $stmt = $pdo->prepare("
-                        UPDATE Coaches 
-                        SET rating = (
-                            SELECT AVG(rating) 
-                            FROM Reviews 
+                    // If completing session and rating provided, save the rating
+                    if ($newStatus === 'completed' && isset($_POST['rating']) && !$is_coach) {
+                        $rating = (int)$_POST['rating'];
+                        $feedback = isset($_POST['feedback']) ? trim($_POST['feedback']) : '';
+                        
+                        if ($rating < 1 || $rating > 5) {
+                            throw new Exception('Rating must be between 1 and 5');
+                        }
+                        
+                        // Insert the review
+                        $stmt = $pdo->prepare("
+                            INSERT INTO Reviews (user_id, coach_id, session_id, rating, comment, created_at)
+                            VALUES (?, ?, ?, ?, ?, NOW())
+                        ");
+                        if (!$stmt->execute([$user_id, $session['coach_id'], $session_id, $rating, $feedback])) {
+                            throw new Exception('Failed to save rating');
+                        }
+                        
+                        // Update coach's average rating
+                        $stmt = $pdo->prepare("
+                            UPDATE Coaches 
+                            SET rating = (
+                                SELECT AVG(rating) 
+                                FROM Reviews 
+                                WHERE coach_id = ?
+                            )
                             WHERE coach_id = ?
-                        )
-                        WHERE coach_id = ?
-                    ");
-                    $stmt->execute([$session['coach_id'], $session['coach_id']]);
+                        ");
+                        $stmt->execute([$session['coach_id'], $session['coach_id']]);
+                    }
+                    
+                    $response['success'] = true;
+                    $response['message'] = 'Session status updated successfully';
+                    
+                    // If this is a direct form submission with redirect parameter, redirect instead of JSON response
+                    if (isset($_POST['redirect_on_success']) && $_POST['redirect_on_success'] == '1') {
+                        // Set a session success message
+                        $_SESSION['success_message'] = $newStatus === 'completed' 
+                            ? 'Session marked as completed successfully!'
+                            : ($newStatus === 'cancelled' 
+                                ? 'Session cancelled successfully!' 
+                                : 'Session status updated successfully!');
+                        
+                        // If a return URL is provided, redirect there instead
+                        if (isset($_POST['return_url']) && !empty($_POST['return_url'])) {
+                            $return_url = $_POST['return_url'];
+                            // Make sure the URL is local (not external)
+                            if (strpos($return_url, '://') === false) {
+                                header('Location: ' . $return_url);
+                                exit;
+                            }
+                        }
+                        
+                        // Otherwise, redirect back to the session page
+                        header('Location: ' . $_SERVER['REQUEST_URI']);
+                        exit;
+                    }
+                    
+                } catch (Exception $e) {
+                    // Set error response
+                    $response['success'] = false;
+                    $response['message'] = $e->getMessage();
+                    
+                    // If this is a direct form submission with redirect parameter, redirect with error
+                    if (isset($_POST['redirect_on_success']) && $_POST['redirect_on_success'] == '1') {
+                        $_SESSION['error_message'] = 'Error: ' . $e->getMessage();
+                        header('Location: ' . $_SERVER['REQUEST_URI']);
+                        exit;
+                    }
                 }
-                
-                $response['success'] = true;
-                $response['message'] = 'Session status updated successfully';
             } elseif ($action === 'request_reschedule') {
-                // Increase execution time limit for this operation
-                set_time_limit(120); // 2 minutes
-                
-                // Disable error output that might interfere with JSON
-                ini_set('display_errors', 0);
-                error_reporting(0);
-                
                 if (!isset($_POST['session_id'], $_POST['new_time'], $_POST['reason'])) {
-                    throw new Exception('Missing required parameters');
+                    throw new Exception('Missing required parameters. Needed: session_id, new_time, reason');
                 }
                 
                 $session_id = (int)$_POST['session_id'];
-                
-                // Log the starting point for debugging
-                error_log("Processing reschedule request for session ID: $session_id");
                 
                 try {
                     // Get session details first to verify permissions
                     $stmt = $pdo->prepare("
                         SELECT s.*, c.user_id as coach_user_id 
-                        FROM sessions s
+                        FROM Sessions s
                         JOIN Coaches c ON s.coach_id = c.coach_id
                         WHERE s.session_id = ?
                     ");
@@ -196,11 +230,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     
                     // Parse the new time with proper error handling
+                    $new_time_raw = trim($_POST['new_time']);
+                    
                     try {
-                        $new_time = new DateTime($_POST['new_time']);
+                        // Try to parse the datetime in the expected format
+                        $new_time = new DateTime($new_time_raw);
                         $now = new DateTime();
                     } catch (Exception $e) {
-                        throw new Exception('Invalid date format provided');
+                        throw new Exception('Invalid date format provided: ' . $new_time_raw);
                     }
                     
                     if ($new_time <= $now) {
@@ -238,8 +275,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt->execute([$coach_id, $new_time_formatted]);
                         $slot_available = ($stmt->fetch(PDO::FETCH_ASSOC)['slot_count'] > 0);
                     } catch (PDOException $slotError) {
-                        // Log the error but continue
-                        error_log("Error checking slot availability: " . $slotError->getMessage());
                         // Default to not available
                         $slot_available = false;
                     }
@@ -261,7 +296,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ]);
                     
                     $request_id = $pdo->lastInsertId();
-                    error_log("Created reschedule request ID: $request_id");
                     
                     // Determine recipient ID (the other party)
                     $recipient_id = ($session['learner_id'] == $user_id) ? $session['coach_user_id'] : $session['learner_id'];
@@ -293,7 +327,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     // Commit the transaction
                     $pdo->commit();
-                    error_log("Reschedule request completed successfully");
                     
                     $response['success'] = true;
                     $response['message'] = 'Reschedule request submitted successfully';
@@ -308,11 +341,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $pdo->rollBack();
                     }
                     
-                    // Log the error
-                    error_log("Error in reschedule request: " . $e->getMessage());
-                    
-                    // Rethrow to be caught by outer catch block
-                    throw $e;
+                    // Set error response
+                    $response['success'] = false;
+                    $response['message'] = $e->getMessage();
                 }
             } elseif ($action === 'respond_reschedule') {
                 if (!isset($_POST['request_id'], $_POST['response'])) {
@@ -329,7 +360,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                            u1.username as requester_name,
                            u2.username as recipient_name
                     FROM RescheduleRequests r
-                    JOIN sessions s ON r.session_id = s.session_id
+                    JOIN Sessions s ON r.session_id = s.session_id
                     JOIN Coaches c ON s.coach_id = c.coach_id
                     JOIN Users u1 ON r.requester_id = u1.user_id
                     JOIN Users u2 ON (
@@ -417,8 +448,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     // Update the session scheduled time
                     $stmt = $pdo->prepare("
-                        UPDATE sessions
-                        SET scheduled_time = ?, last_updated = NOW()
+                        UPDATE Sessions
+                        SET scheduled_time = ?
                         WHERE session_id = ?
                     ");
                     $stmt->execute([$request['new_time'], $request['session_id']]);
@@ -448,8 +479,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $response['success'] = true;
                 $response['message'] = 'Reschedule request ' . ($new_status === 'approved' ? 'approved' : 'rejected') . ' successfully';
-            } else {
-                throw new Exception('Invalid action');
             }
         } else {
             throw new Exception('Missing action parameter');
@@ -460,10 +489,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $response['success'] = false;
         $response['message'] = $e->getMessage();
-        error_log('Error in view-session.php: ' . $e->getMessage());
     }
     
-    // Return JSON response and exit
+    // If this is a direct form submission with redirect parameter, redirect with success/error
+    if (isset($_POST['redirect_on_success']) && $_POST['redirect_on_success'] == '1') {
+        if ($response['success']) {
+            $_SESSION['success_message'] = $response['message'];
+        } else {
+            $_SESSION['error_message'] = $response['message'];
+        }
+        
+        // If a return URL is provided, redirect there
+        if (isset($_POST['return_url']) && !empty($_POST['return_url'])) {
+            $return_url = $_POST['return_url'];
+            // Make sure the URL is local (not external)
+            if (strpos($return_url, '://') === false) {
+                header('Location: ' . $return_url);
+                exit;
+            }
+        }
+        
+        // Otherwise redirect back to current page
+        header('Location: ' . $_SERVER['REQUEST_URI']);
+        exit;
+    }
+    
+    // Return JSON response
     echo json_encode($response);
     exit;
 }
@@ -485,7 +536,7 @@ try {
         $is_requester = ($pending_reschedule['requester_id'] == $user_id);
     }
 } catch (PDOException $e) {
-    error_log("Error checking reschedule requests: " . $e->getMessage());
+    // Silent failure
 }
 
 // Include header
@@ -495,6 +546,24 @@ include __DIR__ . '/../includes/header.php';
 <div class="container my-4">
     <div class="row">
         <div class="col-md-8 mx-auto">
+            <?php if (isset($_SESSION['success_message'])): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <?= htmlspecialchars($_SESSION['success_message']) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <?php unset($_SESSION['success_message']); ?>
+            <?php endif; ?>
+            
+            <?php if (isset($_SESSION['error_message'])): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <?= htmlspecialchars($_SESSION['error_message']) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <?php unset($_SESSION['error_message']); ?>
+            <?php endif; ?>
+            
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Session Details</h4>
@@ -579,25 +648,12 @@ include __DIR__ . '/../includes/header.php';
                                 <div class="card bg-light">
                                     <div class="card-body">
                                         <h5>Rate This Session</h5>
-                                        <form id="ratingForm">
-                                            <input type="hidden" id="session_id_rating" name="session_id" value="<?= $session_id ?>">
-                                            <div class="mb-3">
-                                                <label class="form-label">Rating</label>
-                                                <div class="rating-stars mb-3">
-                                                    <i class="bi bi-star fs-3 rating-star" data-rating="1"></i>
-                                                    <i class="bi bi-star fs-3 rating-star" data-rating="2"></i>
-                                                    <i class="bi bi-star fs-3 rating-star" data-rating="3"></i>
-                                                    <i class="bi bi-star fs-3 rating-star" data-rating="4"></i>
-                                                    <i class="bi bi-star fs-3 rating-star" data-rating="5"></i>
-                                                </div>
-                                                <input type="hidden" id="rating_value" name="rating" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="feedback" class="form-label">Feedback (Optional)</label>
-                                                <textarea class="form-control" id="feedback" name="feedback" rows="3"></textarea>
-                                            </div>
-                                            <button type="button" class="btn btn-primary" id="submitRating">Submit Rating</button>
-                                        </form>
+                                        <p>Please take a moment to rate your experience with this coach.</p>
+                                        <div class="d-grid">
+                                            <a href="review.php?session_id=<?= $session_id ?>&coach_id=<?= $session['coach_id'] ?>" class="btn btn-primary">
+                                                Submit a Review
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -699,7 +755,48 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function() {
             const sessionId = this.dataset.sessionId;
             if (confirm('Are you sure you want to cancel this session?')) {
-                updateSessionStatus(sessionId, 'cancelled');
+                // Create form data manually
+                const formData = new FormData();
+                formData.append('action', 'update_status');
+                formData.append('session_id', sessionId);
+                formData.append('status', 'cancelled');
+                
+                // Log for debugging
+                console.log('Sending cancel request with data:', {
+                    action: 'update_status',
+                    session_id: sessionId,
+                    status: 'cancelled'
+                });
+                
+                fetch(window.location.pathname, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    try {
+                        const result = JSON.parse(text);
+                        if (result.success) {
+                            alert('Session cancelled successfully!');
+                            location.reload();
+                        } else {
+                            alert(result.message || 'Error cancelling session');
+                        }
+                    } catch (e) {
+                        console.error("JSON Parse Error:", e);
+                        console.error("Raw response:", text);
+                        alert('Error processing server response. Please try again or contact support.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error cancelling session: ' + error.message);
+                });
             }
         });
     });
@@ -795,6 +892,30 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to update session status
     function updateSessionStatus(sessionId, status, rating, feedback) {
+        // Show loading indicator or disable buttons if needed
+        let modalInstance = null;
+        if (status === 'completed' && rating) {
+            // If completing with rating, close the modal
+            modalInstance = bootstrap.Modal.getInstance(document.getElementById('ratingModal'));
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+        }
+        
+        // Create the loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-25';
+        loadingDiv.style.zIndex = '9999';
+        loadingDiv.innerHTML = `
+            <div class="card p-3">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border text-primary me-3" role="status"></div>
+                    <div>Processing your request...</div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(loadingDiv);
+        
         const formData = new FormData();
         formData.append('action', 'update_status');
         formData.append('session_id', sessionId);
@@ -808,28 +929,74 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('feedback', feedback);
         }
         
-        fetch(window.location.pathname, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(result => {
-            if (result.success) {
-                alert(status === 'completed' ? 'Session marked as completed!' : 'Session cancelled successfully!');
-                location.reload();
-            } else {
-                alert(result.message || 'Error updating session status');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error updating session status: ' + error.message);
+        // Log for debugging
+        console.log('Sending status update request with data:', {
+            action: 'update_status',
+            session_id: sessionId,
+            status: status,
+            rating: rating || 'N/A',
+            feedback: feedback || 'N/A'
         });
+        
+        // Create and submit a form directly instead of using AJAX
+        // This bypasses potential AJAX issues
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = window.location.pathname + '?id=' + sessionId; // Include session ID in URL
+        form.style.display = 'none';
+        
+        // Add all form fields
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'update_status';
+        form.appendChild(actionInput);
+        
+        const sessionIdInput = document.createElement('input');
+        sessionIdInput.type = 'hidden';
+        sessionIdInput.name = 'session_id';
+        sessionIdInput.value = sessionId;
+        form.appendChild(sessionIdInput);
+        
+        const statusInput = document.createElement('input');
+        statusInput.type = 'hidden';
+        statusInput.name = 'status';
+        statusInput.value = status;
+        form.appendChild(statusInput);
+        
+        if (rating) {
+            const ratingInput = document.createElement('input');
+            ratingInput.type = 'hidden';
+            ratingInput.name = 'rating';
+            ratingInput.value = rating;
+            form.appendChild(ratingInput);
+        }
+        
+        if (feedback) {
+            const feedbackInput = document.createElement('input');
+            feedbackInput.type = 'hidden';
+            feedbackInput.name = 'feedback';
+            feedbackInput.value = feedback;
+            form.appendChild(feedbackInput);
+        }
+        
+        // Add a success redirect
+        const redirectInput = document.createElement('input');
+        redirectInput.type = 'hidden';
+        redirectInput.name = 'redirect_on_success';
+        redirectInput.value = '1';
+        form.appendChild(redirectInput);
+        
+        // Remove loading div after a delay (in case form submission hangs)
+        setTimeout(() => {
+            if (document.body.contains(loadingDiv)) {
+                document.body.removeChild(loadingDiv);
+            }
+        }, 5000); // 5 second timeout
+        
+        // Add to body and submit
+        document.body.appendChild(form);
+        form.submit(); // This will reload the page with the result
     }
 
     // Handle reschedule button
@@ -880,8 +1047,26 @@ document.addEventListener('DOMContentLoaded', function() {
             errorAlert.classList.remove('d-none');
         }, 20000); // 20 second timeout
         
-        // Use native fetch instead of jQuery AJAX
-        const formData = new FormData(form);
+        // Create form data manually to ensure all fields are included
+        const formData = new FormData();
+        formData.append('action', 'request_reschedule');
+        formData.append('session_id', sessionId);
+        
+        // Format the date properly for PHP's datetime parsing
+        // Ensure the datetime is in ISO format (which PHP can parse reliably)
+        const dateObj = new Date(newTime);
+        const formattedDateTime = dateObj.toISOString();
+        formData.append('new_time', formattedDateTime);
+        
+        formData.append('reason', reason);
+        
+        // Debug log to console
+        console.log('Sending reschedule request with data:', {
+            action: 'request_reschedule',
+            session_id: sessionId,
+            new_time: formattedDateTime,
+            reason: reason
+        });
         
         fetch(window.location.href, {
             method: 'POST',
@@ -894,40 +1079,54 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!response.ok) {
                 throw new Error(`Server returned ${response.status}: ${response.statusText}`);
             }
-            return response.json();
+            return response.text();
         })
-        .then(result => {
-            // Reset button state
-            submitButton.disabled = false;
-            submitButton.innerHTML = originalText;
-            
-            if (result.success) {
-                // Close the modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('rescheduleModal'));
-                if (modal) {
-                    modal.hide();
+        .then(text => {
+            try {
+                const result = JSON.parse(text);
+                // Reset button state
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+                
+                if (result.success) {
+                    // Close the modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('rescheduleModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                    
+                    // Show toast notification
+                    const toastElement = document.getElementById('rescheduleToast');
+                    const toastMessage = document.getElementById('toastMessage');
+                    toastMessage.textContent = result.message || 'Your reschedule request has been submitted successfully.';
+                    
+                    const toast = new bootstrap.Toast(toastElement, { 
+                        autohide: true,
+                        delay: 5000
+                    });
+                    toast.show();
+                    
+                    console.log('Reschedule request successful, reloading page in 2 seconds...');
+                    
+                    // Reload the page after a delay to show changes
+                    setTimeout(function() {
+                        window.location.href = window.location.pathname + '?id=' + sessionId + '&success=1';
+                    }, 2000);
+                } else {
+                    // Show error message in the alert
+                    errorMessage.textContent = result.message || 'Error requesting reschedule';
+                    errorAlert.classList.remove('d-none');
                 }
+            } catch (e) {
+                console.error("JSON Parse Error:", e);
+                console.error("Raw response:", text);
                 
-                // Show toast notification
-                const toastElement = document.getElementById('rescheduleToast');
-                const toastMessage = document.getElementById('toastMessage');
-                toastMessage.textContent = result.message || 'Your reschedule request has been submitted successfully.';
+                // Reset button state
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
                 
-                const toast = new bootstrap.Toast(toastElement, { 
-                    autohide: true,
-                    delay: 5000
-                });
-                toast.show();
-                
-                console.log('Reschedule request successful, reloading page in 2 seconds...');
-                
-                // Reload the page after a delay to show changes
-                setTimeout(function() {
-                    window.location.href = window.location.pathname + '?id=' + sessionId + '&success=1';
-                }, 2000);
-            } else {
-                // Show error message in the alert
-                errorMessage.textContent = result.message || 'Error requesting reschedule';
+                // Show error in the alert
+                errorMessage.textContent = 'Error processing server response. Please try again or contact support.';
                 errorAlert.classList.remove('d-none');
             }
         })
@@ -959,33 +1158,44 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = this.dataset.response;
             
             if (confirm(`Are you sure you want to ${response} this reschedule request?`)) {
-                const formData = new FormData();
-                formData.append('action', 'respond_reschedule');
-                formData.append('request_id', requestId);
-                formData.append('response', response);
+                // Create and submit a form directly for more reliable processing
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = window.location.pathname + '?id=' + <?= $session_id ?>;
+                form.style.display = 'none';
                 
-                fetch(window.location.pathname, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(result => {
-                    if (result.success) {
-                        alert(result.message);
-                        location.reload();
-                    } else {
-                        alert(result.message || 'Error responding to reschedule request');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error responding to reschedule request: ' + error.message);
-                });
+                // Add action field
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'action';
+                actionInput.value = 'respond_reschedule';
+                form.appendChild(actionInput);
+                
+                // Add request ID field
+                const requestIdInput = document.createElement('input');
+                requestIdInput.type = 'hidden';
+                requestIdInput.name = 'request_id';
+                requestIdInput.value = requestId;
+                form.appendChild(requestIdInput);
+                
+                // Add response field
+                const responseInput = document.createElement('input');
+                responseInput.type = 'hidden';
+                responseInput.name = 'response';
+                responseInput.value = response;
+                form.appendChild(responseInput);
+                
+                // Add redirect success field
+                const redirectInput = document.createElement('input');
+                redirectInput.type = 'hidden';
+                redirectInput.name = 'redirect_on_success';
+                redirectInput.value = '1';
+                form.appendChild(redirectInput);
+                
+                // Add to body and submit
+                document.body.appendChild(form);
+                console.log(`Submitting form to ${response} request ID ${requestId}`);
+                form.submit();
             }
         });
     });
