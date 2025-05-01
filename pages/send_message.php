@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/../includes/db_connection.php';
 require __DIR__ . '/../includes/auth_functions.php';
+require __DIR__ . '/../includes/notification_functions.php';
 
 // Ensure user is authenticated
 if (!isset($_SESSION['user_id'])) {
@@ -79,6 +80,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Include the message_id for immediate display
             $message_id = $pdo->lastInsertId();
             $response['message_id'] = $message_id;
+            
+            // Get sender username for the notification
+            $stmt = $pdo->prepare("SELECT username FROM Users WHERE user_id = ?");
+            $stmt->execute([$sender_id]);
+            $sender = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Create notification for the receiver
+            if ($sender) {
+                notifyNewMessage($pdo, $receiver_id, $sender_id, $sender['username'], $sender_id);
+            }
         }
     } catch (PDOException $e) {
         error_log("Database error sending message: " . $e->getMessage());

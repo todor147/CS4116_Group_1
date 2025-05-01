@@ -331,6 +331,20 @@ function format_date(dateStr) {
     return date.toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
 }
 
+// Format time with timezone consideration
+function formatMessageTime(dateTimeStr) {
+    // Create date object from string (assumes server time is in Europe/Dublin)
+    const date = new Date(dateTimeStr);
+    
+    // Format the time in the user's timezone
+    return date.toLocaleTimeString('en-US', {
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true,
+        timeZone: 'Europe/Dublin' // Use the server's timezone to ensure consistency
+    });
+}
+
 // When DOM content is loaded
 document.addEventListener('DOMContentLoaded', function() {
     const messageContainer = document.getElementById('messageContainer');
@@ -405,11 +419,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // If no messages were previously shown, ensure the container structure is set up correctly
                     if (messageContainer.querySelector('.text-center.text-muted.my-auto')) {
-                        messageContainer.innerHTML = '<div class="d-flex flex-column-reverse flex-grow-1"><div></div></div>';
+                        // Replace the "no messages" placeholder
+                        messageContainer.innerHTML = `
+                            <div class="d-flex flex-column-reverse flex-grow-1">
+                                <div></div>
+                            </div>
+                        `;
                     }
                     
-                    // Add the message to the UI
-                    addNewMessages([messageObj], true);
+                    // Add new message
+                    const messagesWrapper = messageContainer.querySelector('.d-flex.flex-column-reverse > div');
+                    if (messagesWrapper) {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.id = `msg-${messageObj.message_id}`;
+                        messageDiv.className = 'message outgoing mb-3';
+                        
+                        messageDiv.innerHTML = `
+                            <div class="message-bubble">
+                                ${messageObj.content}
+                                <div class="message-time">
+                                    ${formatMessageTime(messageObj.created_at)}
+                                </div>
+                            </div>
+                        `;
+                        
+                        messagesWrapper.appendChild(messageDiv);
+                        
+                        // Scroll to the new message
+                        messageContainer.scrollTop = messageContainer.scrollHeight;
+                    }
                 }
                 
                 // Commenting out immediate check for new messages to prevent duplicate display
@@ -511,7 +549,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="message-bubble">
                     ${message.content}
                     <div class="message-time">
-                        ${new Date(message.created_at).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true})}
+                        ${formatMessageTime(message.created_at)}
                     </div>
                 </div>
             `;

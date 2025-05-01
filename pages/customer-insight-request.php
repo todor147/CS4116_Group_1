@@ -41,9 +41,9 @@ if ($coach) {
         $stmt = $pdo->prepare("
             SELECT DISTINCT u.user_id, u.username, u.profile_image, 
                    (SELECT COUNT(*) FROM Reviews r WHERE r.user_id = u.user_id AND r.coach_id = ?) as review_count,
-                   (SELECT COUNT(*) FROM sessions s WHERE s.learner_id = u.user_id AND s.coach_id = ? AND s.status = 'completed') as session_count
+                   (SELECT COUNT(*) FROM Sessions s WHERE s.learner_id = u.user_id AND s.coach_id = ? AND s.status = 'completed') as session_count
             FROM Users u
-            JOIN sessions s ON s.learner_id = u.user_id
+            JOIN Sessions s ON s.learner_id = u.user_id
             WHERE s.coach_id = ? 
             AND s.status = 'completed'
             AND u.user_id != ?
@@ -91,6 +91,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     VALUES (?, ?, ?, 'pending', ?, NOW())
                 ");
                 $stmt->execute([$user_id, $verified_customer_id, $coach_id, $message]);
+                
+                // Get the requester and coach information for the notification
+                $stmt = $pdo->prepare("
+                    SELECT u.username as requester_name, c.username as coach_name
+                    FROM Users u
+                    JOIN Users c ON c.user_id = (SELECT user_id FROM Coaches WHERE coach_id = ?)
+                    WHERE u.user_id = ?
+                ");
+                $stmt->execute([$coach_id, $user_id]);
+                $names = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                // Create a notification for the recipient
+                require_once __DIR__ . '/../includes/notification_functions.php';
+                $title = "New Insight Request";
+                $notification_message = "{$names['requester_name']} is requesting insights about {$names['coach_name']}";
+                $link = "insight-requests.php";
+                createNotification($pdo, $verified_customer_id, $title, $notification_message, $link, 'insight');
                 
                 $success = "Your insight request has been sent successfully! You'll be notified when the customer responds.";
             }

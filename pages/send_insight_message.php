@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/../includes/db_connection.php';
 require __DIR__ . '/../includes/auth_functions.php';
+require __DIR__ . '/../includes/notification_functions.php';
 
 header('Content-Type: application/json');
 
@@ -64,6 +65,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ");
                     $stmt->execute([$message_id]);
                     $message = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    // Create notification for the receiver
+                    $stmt = $pdo->prepare("SELECT username FROM Users WHERE user_id = ?");
+                    $stmt->execute([$user_id]);
+                    $sender = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($sender) {
+                        $title = "New insight message";
+                        $message_text = "You have received a new insight message from {$sender['username']}";
+                        $link = "insight-conversation.php?request_id={$request_id}";
+                        
+                        createNotification($pdo, $receiver_id, $title, $message_text, $link, 'insight');
+                    }
                     
                     $response = [
                         'success' => true,

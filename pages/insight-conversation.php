@@ -274,6 +274,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const messageForm = document.getElementById('messageForm');
     const messageInput = document.querySelector('textarea[name="content"]');
     
+    // Format time with timezone consideration
+    function formatMessageTime(dateTimeStr) {
+        // Create date object from string (assumes server time is in Europe/Dublin)
+        const date = new Date(dateTimeStr);
+        
+        // Format the time in the user's timezone
+        return date.toLocaleTimeString('en-US', {
+            hour: 'numeric', 
+            minute: '2-digit', 
+            hour12: true,
+            timeZone: 'Europe/Dublin' // Use the server's timezone to ensure consistency
+        });
+    }
+    
     // Scroll to bottom of messages
     if (messageContainer) {
         messageContainer.scrollTop = messageContainer.scrollHeight;
@@ -334,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="message-bubble">
                             ${newMessage.content}
                             <div class="message-time">
-                                ${new Date(newMessage.created_at).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true})}
+                                ${formatMessageTime(newMessage.created_at)}
                             </div>
                         </div>
                     `;
@@ -401,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="message-bubble">
                                 ${message.content}
                                 <div class="message-time">
-                                    ${new Date(message.created_at).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true})}
+                                    ${formatMessageTime(message.created_at)}
                                 </div>
                             </div>
                         `;

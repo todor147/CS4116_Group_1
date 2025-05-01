@@ -3,7 +3,13 @@ session_start();
 require __DIR__ . '/../includes/db_connection.php';
 require __DIR__ . '/../includes/auth_functions.php';
 
-if (!isset($_SESSION['is_admin']) || !$_SESSION['is_admin']) {
+// Check if user is admin (same check as in admin.php)
+if ((!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) && 
+    (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'admin')) {
+    // Clear the session to ensure a clean state
+    session_unset();
+    session_destroy();
+    
     header('Location: login.php');
     exit;
 }

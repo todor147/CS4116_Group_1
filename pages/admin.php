@@ -1,8 +1,19 @@
 <?php
 session_start();
 
+// Log the session state
+error_log("Admin page accessed by: " . (isset($_SESSION['username']) ? $_SESSION['username'] : 'not logged in'));
+
 // Check if user is admin
-if (!isset($_SESSION['is_admin']) || !$_SESSION['is_admin']) {
+if ((!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) && 
+    (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'admin')) {
+    // Log the failure
+    error_log("Admin access denied - redirecting to login");
+    
+    // Clear the session to ensure a clean state
+    session_unset();
+    session_destroy();
+    
     header('Location: login.php');
     exit;
 }
@@ -69,12 +80,16 @@ include __DIR__ . '/../includes/admin-header.php';
                     <h5 class="mb-0">Quick Actions</h5>
                 </div>
                 <div class="card-body">
-                    <div class="d-grid gap-4">
-                        <a href="manage-users.php" class="btn btn-primary">Manage Users</a>
-                        <a href="review-moderation.php" class="btn btn-info">Review Moderation</a>
+                    <div class="d-flex gap-2">
+                        <a href="manage-users.php" class="btn btn-primary btn-lg">Manage Users</a>
+                        <a href="review-moderation.php" class="btn btn-info btn-lg">Review Moderation</a>
+                        <a href="message-moderation.php" class="btn btn-warning btn-lg">Message Moderation</a>
+                        <a href="banned-words.php" class="btn btn-danger btn-lg">Banned Words</a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<?php include __DIR__ . '/../includes/footer.php'; ?>

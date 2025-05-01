@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once __DIR__ . '/../includes/db_connection.php';
+require_once __DIR__ . '/../includes/auth_functions.php';
+require_once __DIR__ . '/../includes/notification_functions.php';  // Add notification functions
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -16,6 +18,17 @@ $stmt = $pdo->prepare("SELECT user_type FROM Users WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $user = $stmt->fetch();
 $is_coach = ($user['user_type'] === 'business');
+
+// Get coach_id if user is a coach
+$coach_id = null;
+if ($is_coach) {
+    $stmt = $pdo->prepare("SELECT coach_id FROM Coaches WHERE user_id = ?");
+    $stmt->execute([$user_id]);
+    $coach = $stmt->fetch();
+    if ($coach) {
+        $coach_id = $coach['coach_id'];
+    }
+}
 
 // Get coach_id and tier_id from URL parameters
 $selected_coach_id = isset($_GET['coach_id']) ? (int)$_GET['coach_id'] : null;
@@ -37,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     // First verify the session exists and get its details
                     $stmt = $pdo->prepare("
                         SELECT s.*, c.user_id as coach_user_id, u.username as learner_name, u2.username as coach_name
-                        FROM sessions s 
+                        FROM Sessions s 
                         JOIN Coaches c ON s.coach_id = c.coach_id
                         JOIN Users u ON s.learner_id = u.user_id
                         JOIN Users u2 ON c.user_id = u2.user_id
@@ -75,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                     
                     // Update session status
-                    $stmt = $pdo->prepare("UPDATE sessions SET status = ? WHERE session_id = ?");
+                    $stmt = $pdo->prepare("UPDATE Sessions SET status = ? WHERE session_id = ?");
                     if (!$stmt->execute([$_POST['status'], $_POST['session_id']])) {
                         throw new Exception('Failed to update session status');
                     }
@@ -151,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $stmt = $pdo->prepare("
                         SELECT s.*, c.user_id as coach_user_id, u.username as learner_name, u2.username as coach_name,
                                u.email as learner_email, u2.email as coach_email
-                        FROM sessions s 
+                        FROM Sessions s 
                         JOIN Coaches c ON s.coach_id = c.coach_id
                         JOIN Users u ON s.learner_id = u.user_id
                         JOIN Users u2 ON c.user_id = u2.user_id
@@ -289,7 +302,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                u1.username as requester_name,
                                u2.username as recipient_name
                         FROM RescheduleRequests r
-                        JOIN sessions s ON r.session_id = s.session_id
+                        JOIN Sessions s ON r.session_id = s.session_id
                         JOIN Coaches c ON s.coach_id = c.coach_id
                         JOIN Users u1 ON r.requester_id = u1.user_id
                         JOIN Users u2 ON (
@@ -377,7 +390,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         
                         // Update the session scheduled time
                         $stmt = $pdo->prepare("
-                            UPDATE sessions
+                            UPDATE Sessions
                             SET scheduled_time = ?, last_updated = NOW()
                             WHERE session_id = ?
                         ");
@@ -443,7 +456,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         // Check for existing sessions within 1 hour
                         $stmt = $pdo->prepare("
                             SELECT COUNT(*) as session_count 
-                            FROM sessions 
+                            FROM Sessions 
                             WHERE coach_id = ? 
                             AND scheduled_time BETWEEN DATE_SUB(?, INTERVAL 1 HOUR) AND DATE_ADD(?, INTERVAL 1 HOUR)
                         ");
@@ -472,7 +485,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         error_log("Creating session for inquiry ID: $inquiry_id, user ID: $user_id, coach ID: {$_POST['coach_id']}, time: {$_POST['scheduled_time']}");
                         
                         // Create the session
-                        $stmt = $pdo->prepare("INSERT INTO sessions (inquiry_id, learner_id, coach_id, tier_id, scheduled_time, status) VALUES (?, ?, ?, ?, ?, 'scheduled')");
+                        $stmt = $pdo->prepare("INSERT INTO Sessions (inquiry_id, learner_id, coach_id, tier_id, scheduled_time, status) VALUES (?, ?, ?, ?, ?, 'scheduled')");
                         if (!$stmt->execute([$inquiry_id, $user_id, $_POST['coach_id'], $_POST['tier_id'], $_POST['scheduled_time']])) {
                             throw new Exception('Failed to create session');
                         }
@@ -545,7 +558,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     
                     // Create session
                     $stmt = $pdo->prepare("
-                        INSERT INTO sessions 
+                        INSERT INTO Sessions 
                         (inquiry_id, learner_id, coach_id, scheduled_time, status) 
                         VALUES (?, ?, ?, ?, 'scheduled')
                     ");
@@ -566,6 +579,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     ");
                     if (!$stmt->execute([$_POST['inquiry_id']])) {
                         throw new Exception('Failed to update inquiry status');
+                    }
+                    
+                    // Get session ID
+                    $session_id = $pdo->lastInsertId();
+                    
+                    // Create notifications
+                    $stmt = $pdo->prepare("
+                        SELECT s.scheduled_time, s.learner_id, c.user_id as coach_user_id,
+                               learner.username as learner_name, coach.username as coach_name,
+                               t.name as tier_name
+                        FROM Sessions s
+                        JOIN Users learner ON s.learner_id = learner.user_id
+                        JOIN Coaches c ON s.coach_id = c.coach_id
+                        JOIN Users coach ON c.user_id = coach.user_id
+                        LEFT JOIN ServiceTiers t ON s.tier_id = t.tier_id
+                        WHERE s.session_id = ?
+                    ");
+                    $stmt->execute([$session_id]);
+                    $session_info = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($session_info) {
+                        // Create formatted date/time for notifications
+                        $session_date = date('l, F j, Y', strtotime($session_info['scheduled_time']));
+                        $session_time = date('g:i A', strtotime($session_info['scheduled_time']));
+                        $service_info = !empty($session_info['tier_name']) ? " ({$session_info['tier_name']})" : "";
+                        
+                        // Notify the learner
+                        $title = "Session Scheduled from Inquiry";
+                        $message = "Your inquiry has been converted to a session with {$session_info['coach_name']}{$service_info} scheduled for {$session_date} at {$session_time}";
+                        $link = "view-session.php?id={$session_id}";
+                        createNotification($pdo, $session_info['learner_id'], $title, $message, $link, 'session');
                     }
                     
                     $response['success'] = true;
@@ -594,19 +638,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 // Get user's sessions
 $query = $is_coach 
     ? "SELECT s.*, u.username as learner_name, st.name as tier_name, st.price 
-       FROM sessions s 
+       FROM Sessions s 
        JOIN Users u ON s.learner_id = u.user_id 
-       JOIN ServiceTiers st ON s.tier_id = st.tier_id 
+       LEFT JOIN ServiceTiers st ON s.tier_id = st.tier_id 
        WHERE s.coach_id = ?"
     : "SELECT s.*, u.username as coach_name, st.name as tier_name, st.price 
-       FROM sessions s 
+       FROM Sessions s 
        JOIN Coaches c ON s.coach_id = c.coach_id 
        JOIN Users u ON c.user_id = u.user_id 
-       JOIN ServiceTiers st ON s.tier_id = st.tier_id 
+       LEFT JOIN ServiceTiers st ON s.tier_id = st.tier_id 
        WHERE s.learner_id = ?";
 
+// Debug - log the IDs being used
+error_log("User ID: $user_id, Coach ID: " . ($coach_id ?? 'null') . ", Is Coach: " . ($is_coach ? 'yes' : 'no'));
+
 $stmt = $pdo->prepare($query);
-$stmt->execute([$user_id]);
+$stmt->execute([$is_coach ? $coach_id : $user_id]);
 $sessions = $stmt->fetchAll();
 
 // Get user's inquiries
@@ -714,92 +761,32 @@ foreach ($sessions as $session) {
     ];
 }
 
+// Include the header
 include __DIR__ . '/../includes/header.php';
 ?>
 
-<!-- Add FullCalendar CSS -->
-<link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
-
-<!-- Calendar settings to only show the current month and hide extra days -->
-<style>
-    /* Hide days from the next month */
-    .fc-day.fc-day-other {
-        visibility: hidden;
-    }
-    /* Make sure no extra rows are shown for next month */
-    .fc-dayGridMonth-view .fc-daygrid-body {
-        overflow: hidden !important;
-    }
-    /* Fix row height to prevent empty space */
-    .fc-daygrid-body table {
-        table-layout: fixed !important;
-    }
-    
-    /* Style for the calendar */
-    .fc-day-today {
-        background-color: rgba(var(--bs-primary-rgb), 0.1) !important;
-    }
-    .fc-event {
-        cursor: pointer;
-    }
-</style>
-
-<!-- Add custom styles to ensure proper z-index hierarchy -->
-<style>
-    /* Ensure the navbar is always clickable and above all other elements */
-    .navbar {
-        z-index: 9999 !important;
-        position: relative !important;
-    }
-    
-    /* Override any pointer-events that might be interfering with the dropdown functionality */
-    .navbar-nav .dropdown-toggle, 
-    .navbar-nav .dropdown-menu, 
-    .navbar-nav .dropdown {
-        pointer-events: auto !important;
-    }
-    
-    /* Ensure the dropdown menu appears above other elements */
-    .dropdown-menu {
-        z-index: 10000 !important;
-    }
-    
-    /* Fix specifically for categories dropdown and profile dropdown */
-    .dropdown-toggle::after {
-        display: inline-block !important;
-    }
-    
-    /* Fix for potential event blocking */
-    .dropdown-toggle, .nav-link {
-        cursor: pointer !important;
-    }
-    
-    /* Fix for any elements that might overlay the navbar */
-    #calendar, .fc, main, .container, .container-fluid, .card, div[class^="col-"] {
-        z-index: auto !important; 
-    }
-    
-    /* Ensure fullcalendar doesn't interfere with header clicks */
-    .fc-scroller, .fc-view, .fc-view-harness {
-        z-index: 1 !important;
-    }
-    
-    /* Fix any overlay issues */
-    body::before {
-        display: none !important;
-        content: none !important;
-    }
-    
-    /* Ensure proper stacking context */
-    html, body {
-        overflow-x: hidden;
-    }
-</style>
-
-<!-- Add FullCalendar JS and its dependencies -->
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
-
+<!-- Main Content -->
 <div class="container mt-4">
+    <?php if (isset($_SESSION['success_message'])): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <?= htmlspecialchars($_SESSION['success_message']) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <?php unset($_SESSION['success_message']); ?>
+    <?php endif; ?>
+    
+    <?php if (isset($_SESSION['error_message'])): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <?= htmlspecialchars($_SESSION['error_message']) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <?php unset($_SESSION['error_message']); ?>
+    <?php endif; ?>
+
+    <h1 class="mb-4">My Sessions</h1>
+    
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="fs-2 fw-bold"><?= $is_coach ? 'My Teaching Sessions' : 'My Learning Sessions' ?></h1>
     <?php if (!$is_coach): ?>
@@ -828,6 +815,8 @@ include __DIR__ . '/../includes/header.php';
                                     $upcoming_count++;
                                 }
                             }
+                            // Add debug log
+                            error_log("Total sessions: " . count($sessions) . ", Upcoming: " . $upcoming_count);
                             ?>
                             <span class="text-muted"><?= $upcoming_count ?> scheduled</span>
                         </div>
@@ -947,12 +936,12 @@ include __DIR__ . '/../includes/header.php';
     <!-- Sessions List -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0"><i class="bi bi-list-check me-2"></i>Session History</h5>
+            <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i>Session History</h5>
             <div class="btn-group">
-                <button class="btn btn-light btn-sm active" data-filter="all">All</button>
-                <button class="btn btn-light btn-sm" data-filter="scheduled">Scheduled</button>
-                <button class="btn btn-light btn-sm" data-filter="completed">Completed</button>
-                <button class="btn btn-light btn-sm" data-filter="cancelled">Cancelled</button>
+                <button type="button" class="btn btn-light filter-btn active" data-filter="all">All</button>
+                <button type="button" class="btn btn-light filter-btn" data-filter="scheduled">Scheduled</button>
+                <button type="button" class="btn btn-light filter-btn" data-filter="completed">Completed</button>
+                <button type="button" class="btn btn-light filter-btn" data-filter="cancelled">Cancelled</button>
             </div>
         </div>
         <div class="card-body">
@@ -1316,25 +1305,66 @@ window.addEventListener('load', function() {
     
     // Fix for filter buttons
     function setupFilterButtons() {
-        // Target the buttons in the session history card header
-        const filterButtons = document.querySelectorAll('.card .card-header .btn-group .btn');
-        console.log('Found filter buttons:', filterButtons.length, filterButtons);
+        // Target the buttons with data-filter attributes
+        const filterButtons = document.querySelectorAll('button[data-filter]');
+        console.log('Found filter buttons:', filterButtons.length, Array.from(filterButtons).map(btn => btn.dataset.filter));
         
-        if (filterButtons.length === 0) {
-            // Try an alternative selector if the first one didn't work
-            const allButtons = document.querySelectorAll('.btn');
-            console.log('Alternative - all buttons:', allButtons.length);
-            
-            const possibleFilterButtons = Array.from(allButtons).filter(btn => 
-                ['all', 'scheduled', 'completed', 'cancelled'].includes(btn.textContent.trim().toLowerCase())
-            );
-            console.log('Possible filter buttons by text:', possibleFilterButtons.length);
-            
-            if (possibleFilterButtons.length > 0) {
-                possibleFilterButtons.forEach(setupFilterButtonHandler);
-            }
+        if (filterButtons.length > 0) {
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const filterValue = this.dataset.filter;
+                    console.log('Filter button clicked:', filterValue);
+                    
+                    // Find all filter buttons
+                    const allFilterButtons = document.querySelectorAll('button[data-filter]');
+                    
+                    // Remove active class from all buttons
+                    allFilterButtons.forEach(btn => btn.classList.remove('active'));
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // Get the filter value from the data-filter attribute
+                    console.log('Filtering by:', filterValue);
+                    
+                    // Get all rows in the session table
+                    const sessionTable = document.querySelector('.table');
+                    if (!sessionTable) {
+                        console.error('Session table not found');
+                        return;
+                    }
+                    
+                    const rows = sessionTable.querySelectorAll('tbody tr[data-status]');
+                    console.log('Found rows to filter:', rows.length, 'with data-status attributes');
+                    
+                    // Debug: List all rows and their status
+                    console.log('All rows data-status values:');
+                    Array.from(rows).forEach((row, i) => {
+                        console.log(`Row ${i+1}: status='${row.dataset.status}'`);
+                    });
+                    
+                    // Filter the rows based on status
+                    let visibleCount = 0;
+                    rows.forEach(row => {
+                        const rowStatus = row.dataset.status;
+                        console.log('Row status:', rowStatus, 'comparing with filter:', filterValue);
+                        
+                        // Show/hide based on filter
+                        if (filterValue === 'all' || rowStatus === filterValue) {
+                            row.style.display = '';
+                            visibleCount++;
+                            console.log('✓ SHOWING row with status:', rowStatus);
+                        } else {
+                            row.style.display = 'none';
+                            console.log('✗ HIDING row with status:', rowStatus);
+                        }
+                    });
+                    console.log(`Filtering complete: ${visibleCount} rows visible out of ${rows.length}`);
+                });
+            });
         } else {
-            filterButtons.forEach(setupFilterButtonHandler);
+            console.error('No filter buttons found with data-filter attributes');
         }
     }
     
@@ -1769,6 +1799,116 @@ document.addEventListener('DOMContentLoaded', function() {
         console.warn('Calendar element not found');
     }
 });
+
+// ... existing code ...
+    function showAlert(type, message) {
+        const alertElement = document.createElement('div');
+        alertElement.className = `alert alert-${type} alert-dismissible fade show fixed-top mx-auto mt-3`;
+        alertElement.style.maxWidth = '600px';
+        alertElement.style.zIndex = '9999';
+        alertElement.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        document.body.appendChild(alertElement);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(function() {
+            alertElement.classList.remove('show');
+            setTimeout(function() {
+                document.body.removeChild(alertElement);
+            }, 300);
+        }, 5000);
+    }
+    
+    // Session filtering functionality
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    const sessionRows = document.querySelectorAll('tr[data-status]');
+    
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            // Get the filter value
+            const filter = this.getAttribute('data-filter');
+            
+            // Show/hide rows based on filter
+            sessionRows.forEach(row => {
+                const status = row.getAttribute('data-status');
+                if (filter === 'all' || status === filter) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            // Check if any sessions are visible
+            const visibleSessions = Array.from(sessionRows).filter(row => row.style.display !== 'none');
+            const noSessionsRow = document.querySelector('.no-sessions-row');
+            
+            // Remove existing no-sessions-row if it exists
+            if (noSessionsRow) {
+                noSessionsRow.remove();
+            }
+            
+            // Add "No sessions found" message if no sessions are visible
+            if (visibleSessions.length === 0) {
+                const tbody = sessionRows[0]?.parentNode;
+                if (tbody) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.className = 'no-sessions-row';
+                    emptyRow.innerHTML = `
+                        <td colspan="6" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="bi bi-calendar-x fs-1 d-block mb-3"></i>
+                                <p>No ${filter === 'all' ? '' : filter} sessions found.</p>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(emptyRow);
+                }
+            }
+            
+            // Update URL with filter parameter for bookmarking
+            const url = new URL(window.location.href);
+            if (filter === 'all') {
+                url.searchParams.delete('status');
+            } else {
+                url.searchParams.set('status', filter);
+            }
+            window.history.replaceState({}, '', url);
+        });
+    });
+    
+    // Initialize the filter based on URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const statusParam = urlParams.get('status');
+    
+    if (statusParam) {
+        const statusButton = document.querySelector(`.filter-btn[data-filter="${statusParam.toLowerCase()}"]`);
+        if (statusButton) {
+            statusButton.click();
+        }
+    }
+    
+    // Add return_filter parameter to detail links
+    const detailLinks = document.querySelectorAll('a[href*="view-session.php"]');
+    detailLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            const activeFilter = document.querySelector('.filter-btn.active').getAttribute('data-filter');
+            if (activeFilter !== 'all') {
+                const url = new URL(this.href, window.location.origin);
+                url.searchParams.set('return_filter', activeFilter);
+                this.href = url.toString();
+            }
+        });
+    });
+});
+// ... existing code ...
 </script>
 
 <!-- Add this HTML for the toast notification -->
@@ -2090,5 +2230,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Add FullCalendar JS and its dependencies -->
 </script>
+
+<!-- Add session actions script -->
+<script src="../assets/js/session-actions.js"></script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?> 

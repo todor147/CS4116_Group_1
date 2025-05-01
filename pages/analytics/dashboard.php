@@ -75,7 +75,7 @@ try {
             COUNT(DISTINCT r.review_id) as total_reviews
         FROM Coaches c
         LEFT JOIN serviceinquiries si ON c.coach_id = si.coach_id AND si.created_at BETWEEN ? AND ?
-        LEFT JOIN sessions s ON c.coach_id = s.coach_id AND s.scheduled_time BETWEEN ? AND ?
+        LEFT JOIN Sessions s ON c.coach_id = s.coach_id AND s.scheduled_time BETWEEN ? AND ?
         LEFT JOIN ServiceTiers st ON s.tier_id = st.tier_id
         LEFT JOIN Users u ON s.learner_id = u.user_id
         LEFT JOIN Reviews r ON s.coach_id = r.coach_id AND r.created_at BETWEEN ? AND ?
@@ -90,7 +90,7 @@ try {
             DATE(s.scheduled_time) as date,
             COUNT(DISTINCT s.session_id) as session_count,
             IFNULL(SUM(CASE WHEN s.status = 'completed' THEN st.price ELSE 0 END), 0) as daily_revenue
-        FROM sessions s
+        FROM Sessions s
         JOIN ServiceTiers st ON s.tier_id = st.tier_id
         WHERE s.coach_id = ? AND s.scheduled_time BETWEEN ? AND ?
         GROUP BY DATE(s.scheduled_time)
@@ -136,7 +136,7 @@ try {
             IFNULL(SUM(CASE WHEN s.status = 'completed' THEN st.price ELSE 0 END), 0) as tier_revenue,
             COUNT(DISTINCT si.inquiry_id) as inquiry_count
         FROM ServiceTiers st
-        LEFT JOIN sessions s ON st.tier_id = s.tier_id AND s.scheduled_time BETWEEN ? AND ?
+        LEFT JOIN Sessions s ON st.tier_id = s.tier_id AND s.scheduled_time BETWEEN ? AND ?
         LEFT JOIN serviceinquiries si ON st.tier_id = si.tier_id AND si.created_at BETWEEN ? AND ?
         WHERE st.coach_id = ?
         GROUP BY st.tier_id, st.name, st.price
@@ -155,7 +155,7 @@ try {
             MAX(s.scheduled_time) as last_session,
             IFNULL(SUM(CASE WHEN s.status = 'completed' THEN st.price ELSE 0 END), 0) as student_revenue
         FROM Users u
-        JOIN sessions s ON u.user_id = s.learner_id
+        JOIN Sessions s ON u.user_id = s.learner_id
         JOIN ServiceTiers st ON s.tier_id = st.tier_id
         WHERE s.coach_id = ? AND s.scheduled_time BETWEEN ? AND ?
         GROUP BY u.user_id, u.username
@@ -171,7 +171,7 @@ try {
             COUNT(DISTINCT si.inquiry_id) as total_inquiries,
             COUNT(DISTINCT s.session_id) as converted_to_sessions
         FROM serviceinquiries si
-        LEFT JOIN sessions s ON si.inquiry_id = s.inquiry_id
+        LEFT JOIN Sessions s ON si.inquiry_id = s.inquiry_id
         WHERE si.coach_id = ? AND si.created_at BETWEEN ? AND ?
     ");
     $stmt->execute([$coach['coach_id'], $startDate, $endDate]);

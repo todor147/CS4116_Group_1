@@ -18,7 +18,7 @@ $requests = [];
 try {
     $stmt = $pdo->prepare("
         SELECT COUNT(*) as session_count 
-        FROM sessions 
+        FROM Sessions 
         WHERE learner_id = ? AND status = 'completed'
     ");
     $stmt->execute([$user_id]);

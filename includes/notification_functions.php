@@ -36,17 +36,17 @@ function getUnreadNotificationCount($pdo, $user_id) {
  * @param string $title Notification title
  * @param string $message Notification message
  * @param string $link Optional link for more details
- * @param string $notification_type Optional notification type
+ * @param string $notification_type Optional notification type (not stored in DB, but kept for backward compatibility)
  * @return bool Success status
  */
 function createNotification($pdo, $user_id, $title, $message, $link = '', $notification_type = 'general') {
     try {
         $stmt = $pdo->prepare("
             INSERT INTO Notifications
-            (user_id, title, message, link, notification_type, created_at, is_read)
-            VALUES (?, ?, ?, ?, ?, NOW(), 0)
+            (user_id, title, message, link, created_at, is_read)
+            VALUES (?, ?, ?, ?, NOW(), 0)
         ");
-        return $stmt->execute([$user_id, $title, $message, $link, $notification_type]);
+        return $stmt->execute([$user_id, $title, $message, $link]);
     } catch (PDOException $e) {
         error_log("Error creating notification: " . $e->getMessage());
         return false;

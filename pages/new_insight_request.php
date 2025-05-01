@@ -36,7 +36,7 @@ if ($coach_id <= 0) {
             $stmt = $pdo->prepare("
                 SELECT u.id, u.first_name, u.last_name, u.username, COUNT(s.id) as session_count
                 FROM users u
-                JOIN sessions s ON u.id = s.learner_id
+                JOIN Sessions s ON u.id = s.learner_id
                 JOIN UserPrivacySettings ps ON u.id = ps.user_id
                 WHERE s.coach_id = ? 
                 AND s.status = 'completed'

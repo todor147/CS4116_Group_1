@@ -3,7 +3,12 @@ session_start();
 
 // Redirect if already logged in
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
-    header('Location: dashboard.php');
+    // Check if user is admin and redirect accordingly
+    if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true) {
+        header('Location: admin.php');
+    } else {
+        header('Location: dashboard.php');
+    }
     exit;
 }
 
@@ -21,8 +26,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Check for admin login
         if ($email === 'admin@educoach.com' && $password === 'Passw0rd') {
             $_SESSION['logged_in'] = true;
-            $_SESSION['user_id'] = 0; // Special ID for admin
+            $_SESSION['user_id'] = 1; // Admin user ID in the database
             $_SESSION['is_admin'] = true;
+            $_SESSION['username'] = 'admin';
+            $_SESSION['email'] = 'admin@educoach.com';
+            $_SESSION['user_type'] = 'admin';
             header('Location: admin.php');
             exit;
         }
