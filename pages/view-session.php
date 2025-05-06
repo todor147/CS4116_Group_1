@@ -1009,7 +1009,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Handle reschedule submission
-    document.getElementById('submitReschedule')?.addEventListener('click', function() {
+    const submitRescheduleBtn = document.getElementById('submitReschedule');
+    const submitRequestBtn = document.getElementById('submitRequest'); // Add support for the alternative ID
+    
+    // Function to handle the submission process
+    function handleRescheduleSubmission() {
         const form = document.getElementById('rescheduleForm');
         const newTime = document.getElementById('new_time').value;
         const reason = document.getElementById('reason').value;
@@ -1034,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Show loading state
-        const submitButton = document.getElementById('submitReschedule');
+        const submitButton = submitRescheduleBtn || submitRequestBtn;
         const originalText = submitButton.innerHTML;
         submitButton.disabled = true;
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
@@ -1148,7 +1152,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             errorAlert.classList.remove('d-none');
         });
-    });
+    }
+    
+    // Attach handler to the standard button
+    if (submitRescheduleBtn) {
+        submitRescheduleBtn.addEventListener('click', handleRescheduleSubmission);
+    }
+    
+    // Attach handler to the alternative button (shown in the UI)
+    if (submitRequestBtn) {
+        submitRequestBtn.addEventListener('click', handleRescheduleSubmission);
+    }
     
     // Handle respond to reschedule request
     const respondRescheduleButtons = document.querySelectorAll('.respond-reschedule');

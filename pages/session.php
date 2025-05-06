@@ -2000,55 +2000,77 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle reschedule request form submission
     const rescheduleForm = document.getElementById('rescheduleForm');
     const submitRescheduleBtn = document.getElementById('submitRescheduleBtn');
+    
+    // Also look for Submit Request button (alternative ID)
+    const submitRequestBtn = document.getElementById('submitRequest');
 
+    // Handle the standard submit button
     if (submitRescheduleBtn) {
         submitRescheduleBtn.addEventListener('click', function() {
-            // Validate the form
-            if (!rescheduleForm.checkValidity()) {
-                rescheduleForm.reportValidity();
-                return;
-            }
+            submitRescheduleRequest();
+        });
+    }
+    
+    // Handle the alternative submit button (from the UI screenshot)
+    if (submitRequestBtn) {
+        submitRequestBtn.addEventListener('click', function() {
+            submitRescheduleRequest();
+        });
+    }
+    
+    // Extract the form submission logic to a reusable function
+    function submitRescheduleRequest() {
+        // Validate the form
+        if (!rescheduleForm.checkValidity()) {
+            rescheduleForm.reportValidity();
+            return;
+        }
 
-            // Get form values
-            const sessionId = document.getElementById('reschedule_session_id').value;
-            const newDate = document.getElementById('new_date').value;
-            const newTime = document.getElementById('new_time').value;
-            const reason = document.getElementById('reschedule_reason').value;
-            
-            // Combine date and time
-            const newDateTime = `${newDate}T${newTime}:00`;
-            
-            // Submit the request
-            $.ajax({
-                url: window.location.href,
-                method: 'POST',
-                data: {
-                    action: 'request_reschedule',
-                    session_id: sessionId,
-                    new_time: newDateTime,
-                    reason: reason
-                },
-                success: function(response) {
-                    if (response.success) {
-                        // Close the modal
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('rescheduleModal'));
-                        modal.hide();
-                        
-                        // Show success message
-                        showAlert('success', response.message);
-                        
-                        // Reload the page after a delay
-                        setTimeout(function() {
-                            window.location.reload();
-                        }, 2000);
-            } else {
-                        showAlert('danger', response.message);
-                    }
-                },
-                error: function() {
-                    showAlert('danger', 'An error occurred while submitting your request.');
+        // Get form values
+        const sessionId = document.getElementById('reschedule_session_id').value;
+        const newDate = document.getElementById('new_date').value;
+        const newTime = document.getElementById('new_time').value;
+        const reason = document.getElementById('reschedule_reason').value;
+        
+        // Combine date and time
+        const newDateTime = `${newDate}T${newTime}:00`;
+        
+        console.log('Submitting reschedule request:', {
+            sessionId,
+            newDateTime,
+            reason
+        });
+        
+        // Submit the request
+        $.ajax({
+            url: window.location.href,
+            method: 'POST',
+            data: {
+                action: 'request_reschedule',
+                session_id: sessionId,
+                new_time: newDateTime,
+                reason: reason
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Close the modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('rescheduleModal'));
+                    modal.hide();
+                    
+                    // Show success message
+                    showAlert('success', response.message);
+                    
+                    // Reload the page after a delay
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showAlert('danger', response.message);
                 }
-            });
+            },
+            error: function() {
+                showAlert('danger', 'An error occurred while submitting your request.');
+            }
         });
     }
 
