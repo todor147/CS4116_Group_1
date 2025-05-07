@@ -55,21 +55,18 @@ try {
         // Fetch insight requests for this user
         $stmt = $pdo->prepare("
             SELECT 
-                cir.id, 
+                cir.request_id, 
                 cir.status, 
                 cir.message,
                 cir.created_at,
-                requester.id as requester_id,
-                requester.first_name as requester_first_name,
-                requester.last_name as requester_last_name,
+                requester.user_id as requester_id,
                 requester.username as requester_username,
-                coach.id as coach_id,
-                coach.first_name as coach_first_name,
-                coach.last_name as coach_last_name,
-                (SELECT COUNT(*) FROM CustomerInsightMessages WHERE request_id = cir.id) as message_count
+                coach.user_id as coach_id,
+                coach.username as coach_username,
+                (SELECT COUNT(*) FROM CustomerInsightMessages WHERE request_id = cir.request_id) as message_count
             FROM CustomerInsightRequests cir
-            JOIN users requester ON cir.requester_id = requester.id
-            JOIN users coach ON cir.coach_id = coach.id
+            JOIN Users requester ON cir.requester_id = requester.user_id
+            JOIN Users coach ON cir.coach_id = coach.user_id
             WHERE cir.verified_customer_id = ?
             ORDER BY 
                 CASE 
@@ -100,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
             // Verify the request belongs to this user and is in pending state
             $stmt = $pdo->prepare("
                 SELECT * FROM CustomerInsightRequests
-                WHERE id = ? AND verified_customer_id = ? AND status = 'pending'
+                WHERE request_id = ? AND verified_customer_id = ? AND status = 'pending'
             ");
             $stmt->execute([$request_id, $user_id]);
             $request = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -113,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                 $stmt = $pdo->prepare("
                     UPDATE CustomerInsightRequests
                     SET status = ?
-                    WHERE id = ?
+                    WHERE request_id = ?
                 ");
                 $stmt->execute([$new_status, $request_id]);
                 
@@ -124,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                     
                     $stmt = $pdo->prepare("
                         INSERT INTO CustomerInsightMessages 
-                        (request_id, sender_id, recipient_id, message)
+                        (request_id, sender_id, receiver_id, content)
                         VALUES (?, ?, ?, ?)
                     ");
                     $stmt->execute([$request_id, $user_id, $requester_id, $welcome_message]);
@@ -137,21 +134,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                 // Refresh the requests list
                 $stmt = $pdo->prepare("
                     SELECT 
-                        cir.id, 
+                        cir.request_id, 
                         cir.status, 
                         cir.message,
                         cir.created_at,
-                        requester.id as requester_id,
-                        requester.first_name as requester_first_name,
-                        requester.last_name as requester_last_name,
+                        requester.user_id as requester_id,
                         requester.username as requester_username,
-                        coach.id as coach_id,
-                        coach.first_name as coach_first_name,
-                        coach.last_name as coach_last_name,
-                        (SELECT COUNT(*) FROM CustomerInsightMessages WHERE request_id = cir.id) as message_count
+                        coach.user_id as coach_id,
+                        coach.username as coach_username,
+                        (SELECT COUNT(*) FROM CustomerInsightMessages WHERE request_id = cir.request_id) as message_count
                     FROM CustomerInsightRequests cir
-                    JOIN users requester ON cir.requester_id = requester.id
-                    JOIN users coach ON cir.coach_id = coach.id
+                    JOIN Users requester ON cir.requester_id = requester.user_id
+                    JOIN Users coach ON cir.coach_id = coach.user_id
                     WHERE cir.verified_customer_id = ?
                     ORDER BY 
                         CASE 
@@ -241,7 +235,7 @@ include __DIR__ . '/../includes/header.php';
                                                     <div class="d-flex align-items-center">
                                                         <img src="assets/profile/default-avatar.png" alt="User" class="rounded-circle me-2" width="40">
                                                         <div>
-                                                            <div><?= htmlspecialchars($request['requester_first_name'] . ' ' . $request['requester_last_name']) ?></div>
+                                                            <div><?= htmlspecialchars($request['requester_username']) ?></div>
                                                             <small class="text-muted">@<?= htmlspecialchars($request['requester_username']) ?></small>
                                                         </div>
                                                     </div>
@@ -250,7 +244,7 @@ include __DIR__ . '/../includes/header.php';
                                                     <div class="d-flex align-items-center">
                                                         <img src="assets/profile/default-avatar.png" alt="Coach" class="rounded-circle me-2" width="40">
                                                         <div>
-                                                            <div><?= htmlspecialchars($request['coach_first_name'] . ' ' . $request['coach_last_name']) ?></div>
+                                                            <div><?= htmlspecialchars($request['coach_username']) ?></div>
                                                             <small class="text-muted">Coach</small>
                                                         </div>
                                                     </div>
@@ -268,11 +262,11 @@ include __DIR__ . '/../includes/header.php';
                                                     <?php if ($request['status'] === 'pending'): ?>
                                                         <button type="button" class="btn btn-sm btn-primary" 
                                                                 data-bs-toggle="modal" 
-                                                                data-bs-target="#requestModal<?= $request['id'] ?>">
+                                                                data-bs-target="#requestModal<?= $request['request_id'] ?>">
                                                             View Details
                                                         </button>
                                                     <?php elseif ($request['status'] === 'accepted'): ?>
-                                                        <a href="insight_messages.php?request_id=<?= $request['id'] ?>" class="btn btn-sm btn-success">
+                                                        <a href="insight_messages.php?request_id=<?= $request['request_id'] ?>" class="btn btn-sm btn-success">
                                                             Messages
                                                             <?php if ($request['message_count'] > 0): ?>
                                                                 <span class="badge bg-light text-dark ms-1"><?= $request['message_count'] ?></span>
@@ -291,18 +285,18 @@ include __DIR__ . '/../includes/header.php';
                             <!-- Request Modals -->
                             <?php foreach ($requests as $request): ?>
                                 <?php if ($request['status'] === 'pending'): ?>
-                                    <div class="modal fade" id="requestModal<?= $request['id'] ?>" tabindex="-1" aria-labelledby="requestModalLabel<?= $request['id'] ?>" aria-hidden="true">
+                                    <div class="modal fade" id="requestModal<?= $request['request_id'] ?>" tabindex="-1" aria-labelledby="requestModalLabel<?= $request['request_id'] ?>" aria-hidden="true">
                                         <div class="modal-dialog">
                                             <div class="modal-content">
                                                 <div class="modal-header">
-                                                    <h5 class="modal-title" id="requestModalLabel<?= $request['id'] ?>">Insight Request Details</h5>
+                                                    <h5 class="modal-title" id="requestModalLabel<?= $request['request_id'] ?>">Insight Request Details</h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                 </div>
                                                 <div class="modal-body">
                                                     <div class="d-flex align-items-center mb-3">
                                                         <img src="assets/profile/default-avatar.png" alt="User" class="rounded-circle me-3" width="60">
                                                         <div>
-                                                            <h6 class="mb-1"><?= htmlspecialchars($request['requester_first_name'] . ' ' . $request['requester_last_name']) ?></h6>
+                                                            <h6 class="mb-1"><?= htmlspecialchars($request['requester_username']) ?></h6>
                                                             <p class="text-muted mb-0">@<?= htmlspecialchars($request['requester_username']) ?></p>
                                                         </div>
                                                     </div>
@@ -312,7 +306,7 @@ include __DIR__ . '/../includes/header.php';
                                                         <div class="d-flex align-items-center p-2 border rounded">
                                                             <img src="assets/profile/default-avatar.png" alt="Coach" class="rounded-circle me-2" width="40">
                                                             <div>
-                                                                <div><?= htmlspecialchars($request['coach_first_name'] . ' ' . $request['coach_last_name']) ?></div>
+                                                                <div><?= htmlspecialchars($request['coach_username']) ?></div>
                                                                 <small class="text-muted">Coach</small>
                                                             </div>
                                                         </div>
@@ -331,7 +325,7 @@ include __DIR__ . '/../includes/header.php';
                                                 </div>
                                                 <div class="modal-footer">
                                                     <form method="POST" action="">
-                                                        <input type="hidden" name="request_id" value="<?= $request['id'] ?>">
+                                                        <input type="hidden" name="request_id" value="<?= $request['request_id'] ?>">
                                                         <button type="submit" name="action" value="reject" class="btn btn-outline-secondary">Reject</button>
                                                         <button type="submit" name="action" value="accept" class="btn btn-primary">Accept</button>
                                                     </form>

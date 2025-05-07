@@ -28,29 +28,29 @@ function calculateRelevanceScore($coach, $search_query) {
         if (strlen($term) < 2) continue;
         
         // Exact username match gets highest score
-        if (stripos($coach['username'], $term) !== false) {
+        if (isset($coach['username']) && $coach['username'] !== null && stripos($coach['username'], $term) !== false) {
             $score += 10;
         }
         
         // Headline match
-        if (stripos($coach['headline'], $term) !== false) {
+        if (isset($coach['headline']) && $coach['headline'] !== null && stripos($coach['headline'], $term) !== false) {
             $score += 5;
         }
         
         // Bio match
-        if (stripos($coach['bio'], $term) !== false) {
+        if (isset($coach['bio']) && $coach['bio'] !== null && stripos($coach['bio'], $term) !== false) {
             $score += 3;
         }
         
         // About me match
-        if (stripos($coach['about_me'], $term) !== false) {
+        if (isset($coach['about_me']) && $coach['about_me'] !== null && stripos($coach['about_me'], $term) !== false) {
             $score += 3;
         }
         
         // Skills match
         if (isset($coach['top_skills'])) {
             foreach ($coach['top_skills'] as $skill) {
-                if (stripos($skill['skill_name'], $term) !== false) {
+                if (isset($skill['skill_name']) && $skill['skill_name'] !== null && stripos($skill['skill_name'], $term) !== false) {
                     $score += 8; // Higher score for matching skills
                 }
             }
