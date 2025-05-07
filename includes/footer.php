@@ -39,7 +39,13 @@
                 <div class="col-lg-3 col-md-6 mb-4 mb-lg-0">
                     <h5 class="text-uppercase mb-4">For Coaches</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-2"><a href="<?= $prefix ?>become-coach.php" class="text-white text-decoration-none">Become a Coach</a></li>
+                        <li class="mb-2">
+                            <?php if (isset($_SESSION['logged_in']) && isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'business'): ?>
+                                <a href="<?= $prefix ?>edit-coach-profile.php" class="text-white text-decoration-none">Coach Dashboard</a>
+                            <?php else: ?>
+                                <a href="<?= $prefix ?>become-coach.php" class="text-white text-decoration-none">Become a Coach</a>
+                            <?php endif; ?>
+                        </li>
                         <li class="mb-2"><a href="<?= $prefix ?>coach-resources.php" class="text-white text-decoration-none">Coach Resources</a></li>
                         <li class="mb-2"><a href="<?= $prefix ?>success-stories.php" class="text-white text-decoration-none">Success Stories</a></li>
                         <li class="mb-2"><a href="<?= $prefix ?>coach-faq.php" class="text-white text-decoration-none">Coach FAQ</a></li>

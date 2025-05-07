@@ -50,7 +50,7 @@ try {
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as pending_count 
             FROM CustomerInsightRequests 
-            WHERE customer_id = ? AND status = 'pending'
+            WHERE verified_customer_id = ? AND status = 'pending'
         ");
         $stmt->execute([$user_id]);
         $pending_request_count = $stmt->fetchColumn();

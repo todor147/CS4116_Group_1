@@ -594,6 +594,42 @@ include __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
 
+                    <?php if ($pending_reschedule): ?>
+                    <!-- Display pending reschedule details in highlighted section -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="alert alert-warning">
+                                <h5><i class="bi bi-clock-history me-2"></i>Pending Reschedule Request</h5>
+                                <div class="d-flex flex-column flex-md-row gap-4 mt-3">
+                                    <div class="p-3 bg-light rounded">
+                                        <div class="small text-muted">Current Scheduled Time</div>
+                                        <div class="fw-bold text-danger">
+                                            <i class="bi bi-calendar-x me-2"></i>
+                                            <?= date('F j, Y g:i A', strtotime($session['scheduled_time'])) ?>
+                                        </div>
+                                    </div>
+                                    <div class="p-3 bg-light rounded">
+                                        <div class="small text-muted">Proposed New Time</div>
+                                        <div class="fw-bold text-success">
+                                            <i class="bi bi-calendar-check me-2"></i>
+                                            <?= date('F j, Y g:i A', strtotime($pending_reschedule['new_time'])) ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <strong>Reason for Reschedule:</strong>
+                                    <p class="mb-0"><?= htmlspecialchars($pending_reschedule['reason']) ?></p>
+                                </div>
+                                <div class="mt-3">
+                                    <strong>Requested by:</strong>
+                                    <span class="fw-bold"><?= htmlspecialchars($pending_reschedule['requester_name']) ?></span>
+                                    on <?= date('F j, Y', strtotime($pending_reschedule['created_at'])) ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                     <?php if (!empty($session['notes'])): ?>
                         <div class="row mb-4">
                             <div class="col-12">

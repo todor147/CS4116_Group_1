@@ -113,6 +113,28 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
             opacity: 1 !important;
             visibility: visible !important;
         }
+        
+        /* Sticky navbar styles */
+        .navbar {
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .navbar.navbar-sticky {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1030;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .navbar.navbar-hidden {
+            transform: translateY(-100%);
+        }
+        
+        /* Add padding to body when navbar is fixed */
+        body.has-sticky-navbar {
+            padding-top: 76px; /* Adjust based on your navbar height */
+        }
     </style>
 </head>
 <body>
@@ -169,7 +191,15 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
                         </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-person-circle"></i>
+                                <?php
+                                // Display user profile image if available
+                                if (isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image'])) {
+                                    $image_path = '/assets/images/profiles/' . $_SESSION['profile_image'];
+                                    echo '<img src="' . $image_path . '" class="user-avatar" alt="Profile Image">';
+                                } else {
+                                    echo '<i class="bi bi-person-circle"></i>';
+                                }
+                                ?>
                                 <?= $_SESSION['username'] ?? 'Account' ?>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
@@ -284,6 +314,51 @@ if (isset($_SESSION['logged_in']) && isset($_SESSION['user_id'])) {
         }
     });
     <?php endif; ?>
+    </script>
+
+    <script>
+    // Sticky navbar functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const navbar = document.querySelector('.navbar');
+        const body = document.body;
+        let lastScrollTop = 0;
+        const navbarHeight = navbar.offsetHeight;
+        
+        // Add padding to body equal to navbar height
+        function setupStickyNavbar() {
+            body.classList.add('has-sticky-navbar');
+            navbar.classList.add('navbar-sticky');
+        }
+        
+        // Handle scroll events
+        window.addEventListener('scroll', function() {
+            let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            // If we've scrolled past the navbar height
+            if (scrollTop > navbarHeight) {
+                // Make navbar sticky if not already
+                if (!navbar.classList.contains('navbar-sticky')) {
+                    setupStickyNavbar();
+                }
+                
+                // Hide navbar when scrolling down, show when scrolling up
+                if (scrollTop > lastScrollTop) {
+                    // Scrolling down
+                    navbar.classList.add('navbar-hidden');
+                } else {
+                    // Scrolling up
+                    navbar.classList.remove('navbar-hidden');
+                }
+            } else {
+                // Remove sticky when back at the top
+                navbar.classList.remove('navbar-sticky');
+                navbar.classList.remove('navbar-hidden');
+                body.classList.remove('has-sticky-navbar');
+            }
+            
+            lastScrollTop = scrollTop;
+        });
+    });
     </script>
 </body>
 </html> 

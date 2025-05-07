@@ -173,7 +173,6 @@ include __DIR__ . '/../includes/header.php';
 .service-card .card-header {
     position: relative;
     z-index: 2;
-    padding-right: 35px; /* Give space for the ribbon */
 }
 
 .service-card .service-description {
@@ -186,31 +185,31 @@ include __DIR__ . '/../includes/header.php';
     margin-bottom: 1rem;
 }
 
-/* Ribbon styling */
+/* Improved Ribbon styling */
 .ribbon {
     position: absolute;
-    top: 0;
-    right: 0;
-    width: 120px;
-    height: 120px;
+    top: -3px;
+    right: -3px;
+    z-index: 5;
     overflow: hidden;
-    z-index: 1;
+    width: 100px;
+    height: 100px;
 }
 
 .ribbon span {
     position: absolute;
     display: block;
-    width: 170px;
+    width: 120px;
     padding: 5px 0;
     background-color: #3d6bfd;
     color: #fff;
     text-align: center;
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     font-weight: bold;
-    box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 3px 5px rgba(0,0,0,0.15);
     transform: rotate(45deg);
     right: -25px;
-    top: 30px;
+    top: 20px;
     text-transform: uppercase;
 }
 
@@ -429,9 +428,31 @@ include __DIR__ . '/../includes/header.php';
                         <?php endif; ?>
                         
                         <?php if (!empty($coach['video_url'])): ?>
+                            <?php
+                            // Function to convert YouTube URL to embed format
+                            function getYoutubeEmbedUrl($url) {
+                                // Regular expressions to match YouTube URLs
+                                $pattern = '/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/';
+                                
+                                // Extract video ID
+                                if (preg_match($pattern, $url, $matches)) {
+                                    $videoId = $matches[1];
+                                    return "https://www.youtube.com/embed/{$videoId}";
+                                }
+                                
+                                // If URL already looks like an embed URL or is something else entirely, return as is
+                                return $url;
+                            }
+                            
+                            $embedUrl = getYoutubeEmbedUrl($coach['video_url']);
+                            ?>
                             <div class="ratio ratio-16x9 mt-4">
-                                <iframe src="<?= htmlspecialchars($coach['video_url']) ?>" 
-                                        title="Coach Introduction" allowfullscreen></iframe>
+                                <iframe src="<?= htmlspecialchars($embedUrl) ?>" 
+                                        title="Coach Introduction" 
+                                        allowfullscreen
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        referrerpolicy="strict-origin-when-cross-origin">
+                                </iframe>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -449,8 +470,8 @@ include __DIR__ . '/../includes/header.php';
                             <div class="row">
                                 <?php foreach ($coach_services as $index => $service): ?>
                                     <div class="col-md-4 mb-4">
-                                        <div class="card h-100 service-card<?= $index === 1 ? ' border-primary' : '' ?>">
-                                            <?php if ($index === 1 || (isset($service['is_popular']) && $service['is_popular'])): ?>
+                                        <div class="card h-100 service-card<?= (isset($service['is_popular']) && $service['is_popular']) ? ' border-primary' : '' ?>">
+                                            <?php if (isset($service['is_popular']) && $service['is_popular']): ?>
                                                 <div class="ribbon">
                                                     <span>POPULAR</span>
                                                 </div>

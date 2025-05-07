@@ -938,10 +938,10 @@ include __DIR__ . '/../includes/header.php';
         <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
             <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i>Session History</h5>
             <div class="btn-group">
-                <button type="button" class="btn btn-light filter-btn active" data-filter="all">All</button>
-                <button type="button" class="btn btn-light filter-btn" data-filter="scheduled">Scheduled</button>
-                <button type="button" class="btn btn-light filter-btn" data-filter="completed">Completed</button>
-                <button type="button" class="btn btn-light filter-btn" data-filter="cancelled">Cancelled</button>
+                <button type="button" class="btn btn-light filter-btn active" data-filter="all" onclick="filterSessions('all'); return false;">All</button>
+                <button type="button" class="btn btn-light filter-btn" data-filter="scheduled" onclick="filterSessions('scheduled'); return false;">Scheduled</button>
+                <button type="button" class="btn btn-light filter-btn" data-filter="completed" onclick="filterSessions('completed'); return false;">Completed</button>
+                <button type="button" class="btn btn-light filter-btn" data-filter="cancelled" onclick="filterSessions('cancelled'); return false;">Cancelled</button>
             </div>
         </div>
         <div class="card-body">
@@ -1064,18 +1064,18 @@ include __DIR__ . '/../includes/header.php';
                                     ?>
                                         
                                         <?php if ($session_passed): // Only show complete button if session time has passed ?>
-                                        <button class="btn btn-sm btn-outline-success complete-session" data-session-id="<?= $session['session_id'] ?>">
+                                        <button class="btn btn-sm btn-outline-success complete-session" data-session-id="<?= $session['session_id'] ?>" onclick="handleCompleteSession(<?= $session['session_id'] ?>); return false;">
                                             <i class="bi bi-check-circle me-1"></i> Complete
                                 </button>
                                         <?php endif; ?>
                                         
                                         <?php if (!$has_pending_request): // Only show reschedule if no pending request ?>
-                                        <button class="btn btn-sm btn-outline-primary reschedule-session" data-session-id="<?= $session['session_id'] ?>">
+                                        <button class="btn btn-sm btn-outline-primary reschedule-session" data-session-id="<?= $session['session_id'] ?>" onclick="handleRescheduleSession(<?= $session['session_id'] ?>); return false;">
                                             <i class="bi bi-calendar-week me-1"></i> Reschedule
                                 </button>
                                 <?php endif; ?>
                                         
-                                        <button class="btn btn-sm btn-outline-danger cancel-session" data-session-id="<?= $session['session_id'] ?>">
+                                        <button class="btn btn-sm btn-outline-danger cancel-session" data-session-id="<?= $session['session_id'] ?>" onclick="handleCancelSession(<?= $session['session_id'] ?>); return false;">
                                             <i class="bi bi-x-circle me-1"></i> Cancel
                                         </button>
                                         
@@ -1303,471 +1303,7 @@ include __DIR__ . '/../includes/header.php';
 window.addEventListener('load', function() {
     console.log('Page fully loaded, initializing session management');
     
-    // Fix for filter buttons
-    function setupFilterButtons() {
-        // Target the buttons with data-filter attributes
-        const filterButtons = document.querySelectorAll('button[data-filter]');
-        console.log('Found filter buttons:', filterButtons.length, Array.from(filterButtons).map(btn => btn.dataset.filter));
-        
-        if (filterButtons.length > 0) {
-            filterButtons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const filterValue = this.dataset.filter;
-                    console.log('Filter button clicked:', filterValue);
-                    
-                    // Find all filter buttons
-                    const allFilterButtons = document.querySelectorAll('button[data-filter]');
-                    
-                    // Remove active class from all buttons
-                    allFilterButtons.forEach(btn => btn.classList.remove('active'));
-                    
-                    // Add active class to clicked button
-                    this.classList.add('active');
-                    
-                    // Get the filter value from the data-filter attribute
-                    console.log('Filtering by:', filterValue);
-                    
-                    // Get all rows in the session table
-                    const sessionTable = document.querySelector('.table');
-                    if (!sessionTable) {
-                        console.error('Session table not found');
-                        return;
-                    }
-                    
-                    const rows = sessionTable.querySelectorAll('tbody tr[data-status]');
-                    console.log('Found rows to filter:', rows.length, 'with data-status attributes');
-                    
-                    // Debug: List all rows and their status
-                    console.log('All rows data-status values:');
-                    Array.from(rows).forEach((row, i) => {
-                        console.log(`Row ${i+1}: status='${row.dataset.status}'`);
-                    });
-                    
-                    // Filter the rows based on status
-                    let visibleCount = 0;
-                    rows.forEach(row => {
-                        const rowStatus = row.dataset.status;
-                        console.log('Row status:', rowStatus, 'comparing with filter:', filterValue);
-                        
-                        // Show/hide based on filter
-                        if (filterValue === 'all' || rowStatus === filterValue) {
-                            row.style.display = '';
-                            visibleCount++;
-                            console.log('✓ SHOWING row with status:', rowStatus);
-                        } else {
-                            row.style.display = 'none';
-                            console.log('✗ HIDING row with status:', rowStatus);
-                        }
-                    });
-                    console.log(`Filtering complete: ${visibleCount} rows visible out of ${rows.length}`);
-                });
-            });
-        } else {
-            console.error('No filter buttons found with data-filter attributes');
-        }
-    }
-    
-    function setupFilterButtonHandler(button) {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('Filter button clicked:', this.textContent.trim());
-            
-            // Find all filter buttons in the same group
-            const buttonGroup = this.closest('.btn-group') || document.querySelector('.btn-group');
-            const allFilterButtons = buttonGroup ? 
-                buttonGroup.querySelectorAll('.btn') : 
-                document.querySelectorAll('.btn-group .btn');
-            
-            // Remove active class from all buttons
-            allFilterButtons.forEach(btn => btn.classList.remove('active'));
-            
-            // Add active class to clicked button
-            this.classList.add('active');
-            
-            // Get the filter value from the button text
-            const filterValue = this.textContent.trim().toLowerCase();
-            console.log('Filtering by:', filterValue);
-            
-            // Get all rows in the session table
-            const sessionTable = document.querySelector('.table');
-            if (!sessionTable) {
-                console.error('Session table not found');
-                return;
-            }
-            
-            const rows = sessionTable.querySelectorAll('tbody tr');
-            console.log('Found rows to filter:', rows.length);
-            
-            // Filter the rows based on status
-            rows.forEach(row => {
-                // Get the status from the badge text in the status column (5th column)
-                const statusCell = row.querySelector('td:nth-child(5)');
-                if (!statusCell) {
-                    console.warn('Status cell not found in row', row);
-                    return;
-                }
-                
-                const statusText = statusCell.textContent.trim().toLowerCase();
-                console.log('Row status text:', statusText);
-                
-                // Show/hide based on filter
-                if (filterValue === 'all' || statusText.includes(filterValue)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        });
-    }
-    
-    // Fix for action buttons
-    function setupActionButtons() {
-        // Find all Complete buttons with the correct class
-        const completeButtons = document.querySelectorAll('.complete-session');
-        console.log('Found complete buttons:', completeButtons.length);
-        
-        // If no buttons found with the class, try alternative selectors
-        if (completeButtons.length === 0) {
-            // Try to find buttons by text content
-            document.querySelectorAll('.btn').forEach(btn => {
-                if (btn.textContent.trim().toLowerCase() === 'complete') {
-                    btn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        console.log('Complete button clicked');
-                        
-                        // Get session ID directly from the button's data attribute
-                        let sessionId = this.dataset.sessionId;
-                        console.log('Button session ID attribute:', sessionId);
-                        
-                        if (!sessionId) {
-                            // Try other methods to find session ID
-                            sessionId = findSessionIdFromRow(this.closest('tr'));
-                        }
-                        
-                        if (!sessionId) {
-                            alert('Could not determine session ID. Please try again.');
-                            return;
-                        }
-                        
-                        handleComplete(sessionId, this.closest('tr'));
-                    });
-                }
-            });
-        } else {
-            completeButtons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    let sessionId = this.dataset.sessionId;
-                    console.log('Complete button clicked, session ID:', sessionId);
-                    
-                    if (!sessionId) {
-                        sessionId = findSessionIdFromRow(this.closest('tr'));
-                    }
-                    
-                    if (!sessionId) {
-                        alert('Could not determine session ID. Please try again.');
-                        return;
-                    }
-                    
-                    handleComplete(sessionId, this.closest('tr'));
-                });
-            });
-        }
-        
-        // Find all Cancel buttons with the correct class
-        const cancelButtons = document.querySelectorAll('.cancel-session');
-        console.log('Found cancel buttons:', cancelButtons.length);
-        
-        // If no buttons found with the class, try alternative selectors
-        if (cancelButtons.length === 0) {
-            // Try to find buttons by text content
-            document.querySelectorAll('.btn').forEach(btn => {
-                if (btn.textContent.trim().toLowerCase() === 'cancel') {
-                    btn.addEventListener('click', function(e) {
-            e.preventDefault();
-                        console.log('Cancel button clicked');
-                        
-                        // Get session ID directly from the button's data attribute
-                        let sessionId = this.dataset.sessionId;
-                        console.log('Button session ID attribute:', sessionId);
-                        
-                        if (!sessionId) {
-                            // Try other methods to find session ID
-                            sessionId = findSessionIdFromRow(this.closest('tr'));
-                        }
-                        
-                        if (!sessionId) {
-                            alert('Could not determine session ID. Please try again.');
-                            return;
-                        }
-                        
-                        handleCancel(sessionId);
-                    });
-                }
-            });
-        } else {
-            cancelButtons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    let sessionId = this.dataset.sessionId;
-                    console.log('Cancel button clicked, session ID:', sessionId);
-                    
-                    if (!sessionId) {
-                        sessionId = findSessionIdFromRow(this.closest('tr'));
-                    }
-                    
-                    if (!sessionId) {
-                        alert('Could not determine session ID. Please try again.');
-                        return;
-                    }
-                    
-                    handleCancel(sessionId);
-                });
-            });
-        }
-    }
-    
-    // Helper function to find session ID from different sources in a row
-    function findSessionIdFromRow(row) {
-        if (!row) return null;
-        console.log('Trying to find session ID from row:', row);
-        
-        // Try to find session ID in links within the row
-        const links = row.querySelectorAll('a[href*="id="]');
-        if (links.length > 0) {
-            const href = links[0].getAttribute('href');
-            const match = href.match(/id=(\d+)/);
-            if (match && match[1]) {
-                console.log('Found session ID from link:', match[1]);
-                return match[1];
-            }
-        }
-        
-        // Try to find it from a hidden input
-        const hiddenInput = row.querySelector('input[name="session_id"]');
-        if (hiddenInput && hiddenInput.value) {
-            console.log('Found session ID from hidden input:', hiddenInput.value);
-            return hiddenInput.value;
-        }
-        
-        // Last resort: try to get it from the current URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlSessionId = urlParams.get('id');
-        if (urlSessionId) {
-            console.log('Found session ID from URL:', urlSessionId);
-            return urlSessionId;
-        }
-        
-        console.error('Could not find session ID from any source');
-        return null;
-    }
-    
-    function handleComplete(sessionId, row) {
-        console.log('Handling complete for session:', sessionId);
-        
-        // Get the session time from the row
-        let sessionTimeStr = '';
-        if (row) {
-            const dateCell = row.querySelector('td:nth-child(3)');
-            if (dateCell) {
-                sessionTimeStr = dateCell.textContent.trim();
-                console.log('Found session time:', sessionTimeStr);
-            }
-        }
-        
-        // Check if the session time has passed
-        if (sessionTimeStr) {
-            try {
-                const sessionTime = new Date(sessionTimeStr);
-                const now = new Date();
-                
-                console.log('Parsed time:', sessionTime);
-                console.log('Current time:', now);
-                
-                if (!isNaN(sessionTime.getTime()) && sessionTime > now) {
-                    alert('This session cannot be marked as completed until after the scheduled time.');
-                    return;
-                }
-            } catch (error) {
-                console.error('Error checking session time:', error);
-                // Continue anyway if there was an error in time checking
-            }
-        }
-        
-        // Show the rating modal
-        const ratingModal = document.getElementById('ratingModal');
-        if (ratingModal) {
-            const sessionIdInput = document.getElementById('session_id_rating');
-            if (sessionIdInput) {
-                sessionIdInput.value = sessionId;
-            }
-            
-            // Use Bootstrap modal if available
-            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                const modal = new bootstrap.Modal(ratingModal);
-                modal.show();
-                } else {
-                // Fallback to basic display
-                ratingModal.style.display = 'block';
-            }
-        } else {
-            // If modal not found, just submit directly
-            submitCompletionRequest(sessionId);
-        }
-    }
-    
-    function handleCancel(sessionId) {
-        console.log('Handling cancel for session:', sessionId);
-        
-                    if (!confirm('Are you sure you want to cancel this session?')) {
-                        return;
-                    }
-                    
-        submitCancellationRequest(sessionId);
-    }
-    
-    function submitCompletionRequest(sessionId, rating, feedback) {
-                    const formData = new FormData();
-                    formData.append('action', 'update_status');
-                    formData.append('session_id', sessionId);
-        formData.append('status', 'completed');
-        
-        if (rating) {
-            formData.append('rating', rating);
-        }
-        
-        if (feedback) {
-            formData.append('feedback', feedback);
-        }
-        
-        fetch(window.location.pathname, {
-                            method: 'POST',
-                            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(result => {
-                        if (result.success) {
-                alert('Session marked as completed!');
-                            location.reload();
-                        } else {
-                            alert(result.message || 'Error updating session status');
-                        }
-        })
-        .catch(error => {
-            console.error('Error completing session:', error);
-            alert('Error updating session status: ' + error.message);
-        });
-    }
-    
-    function submitCancellationRequest(sessionId) {
-        const formData = new FormData();
-        formData.append('action', 'update_status');
-        formData.append('session_id', sessionId);
-        formData.append('status', 'cancelled');
-        
-        fetch(window.location.pathname, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(result => {
-            if (result.success) {
-                alert('Session cancelled successfully!');
-                location.reload();
-                } else {
-                alert(result.message || 'Error updating session status');
-            }
-        })
-        .catch(error => {
-            console.error('Error canceling session:', error);
-            alert('Error updating session status: ' + error.message);
-        });
-    }
-    
-    // Handle rating submission
-    function setupRatingSubmission() {
-        // Set up the star rating functionality
-    const ratingStars = document.querySelectorAll('.rating-stars i');
-        if (ratingStars.length > 0) {
-    ratingStars.forEach(star => {
-        star.addEventListener('click', function() {
-            const rating = this.dataset.rating;
-                    document.getElementById('rating_value').value = rating;
-                    
-                    // Update visual state of stars
-                    ratingStars.forEach(s => {
-                        if (s.dataset.rating <= rating) {
-                            s.classList.add('text-warning');
-                        } else {
-                            s.classList.remove('text-warning');
-                            s.classList.add('text-muted');
-                        }
-        });
-    });
-
-                // Add hover effects
-                star.addEventListener('mouseenter', function() {
-            const rating = this.dataset.rating;
-                    ratingStars.forEach(s => {
-                        if (s.dataset.rating <= rating) {
-                            s.classList.add('text-warning');
-                        } else {
-                            s.classList.remove('text-warning');
-                            s.classList.add('text-muted');
-                        }
-        });
-
-                star.addEventListener('mouseleave', function() {
-                    const rating = document.getElementById('rating_value').value;
-                    ratingStars.forEach(s => {
-                        if (rating && s.dataset.rating <= rating) {
-                            s.classList.add('text-warning');
-                        } else {
-                            s.classList.remove('text-warning');
-                            s.classList.add('text-muted');
-                        }
-                    });
-                });
-            });
-        }
-
-        const submitButton = document.getElementById('submitRating');
-        if (submitButton) {
-            submitButton.addEventListener('click', function() {
-                const ratingValue = document.getElementById('rating_value');
-                if (!ratingValue || !ratingValue.value) {
-            alert('Please select a rating before submitting');
-            return;
-        }
-
-        const sessionId = document.getElementById('session_id_rating').value;
-        if (!sessionId) {
-            alert('Session ID is missing');
-            return;
-        }
-
-                const feedback = document.getElementById('feedback')?.value || '';
-                
-                submitCompletionRequest(sessionId, ratingValue.value, feedback);
-            });
-        }
-    }
-    
-    // Initialize everything
-    setupFilterButtons();
+    // REMOVED setupFilterButtons(); // This function and its definition will be removed
     setupActionButtons();
     setupRatingSubmission();
     
@@ -1835,16 +1371,20 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Get the filter value
             const filter = this.getAttribute('data-filter');
+            console.log('Filtering sessions by:', filter); // Added log
             
             // Show/hide rows based on filter
+            let visibleCount = 0; // Added for debugging
             sessionRows.forEach(row => {
                 const status = row.getAttribute('data-status');
                 if (filter === 'all' || status === filter) {
                     row.style.display = '';
+                    visibleCount++;
                 } else {
                     row.style.display = 'none';
                 }
             });
+            console.log(visibleCount + ' sessions shown after filtering.'); // Added log
             
             // Check if any sessions are visible
             const visibleSessions = Array.from(sessionRows).filter(row => row.style.display !== 'none');
@@ -1994,221 +1534,297 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Add reschedule JavaScript functionality -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize the sessions UI
-    initSessionsUI();
+    console.log('Session page initialized');
+});
 
-    // Handle reschedule request form submission
-    const rescheduleForm = document.getElementById('rescheduleForm');
-    const submitRescheduleBtn = document.getElementById('submitRescheduleBtn');
+// Direct function implementations for the onclick handlers
+function filterSessions(filter) {
+    console.log('Filtering sessions by:', filter);
     
-    // Also look for Submit Request button (alternative ID)
-    const submitRequestBtn = document.getElementById('submitRequest');
-
-    // Handle the standard submit button
-    if (submitRescheduleBtn) {
-        submitRescheduleBtn.addEventListener('click', function() {
-            submitRescheduleRequest();
-        });
-    }
-    
-    // Handle the alternative submit button (from the UI screenshot)
-    if (submitRequestBtn) {
-        submitRequestBtn.addEventListener('click', function() {
-            submitRescheduleRequest();
-        });
-    }
-    
-    // Extract the form submission logic to a reusable function
-    function submitRescheduleRequest() {
-        // Validate the form
-        if (!rescheduleForm.checkValidity()) {
-            rescheduleForm.reportValidity();
-            return;
-        }
-
-        // Get form values
-        const sessionId = document.getElementById('reschedule_session_id').value;
-        const newDate = document.getElementById('new_date').value;
-        const newTime = document.getElementById('new_time').value;
-        const reason = document.getElementById('reschedule_reason').value;
-        
-        // Combine date and time
-        const newDateTime = `${newDate}T${newTime}:00`;
-        
-        console.log('Submitting reschedule request:', {
-            sessionId,
-            newDateTime,
-            reason
-        });
-        
-        // Submit the request
-        $.ajax({
-            url: window.location.href,
-            method: 'POST',
-            data: {
-                action: 'request_reschedule',
-                session_id: sessionId,
-                new_time: newDateTime,
-                reason: reason
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Close the modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('rescheduleModal'));
-                    modal.hide();
-                    
-                    // Show success message
-                    showAlert('success', response.message);
-                    
-                    // Reload the page after a delay
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 2000);
-                } else {
-                    showAlert('danger', response.message);
-                }
-            },
-            error: function() {
-                showAlert('danger', 'An error occurred while submitting your request.');
-            }
-        });
-    }
-
-    // Handle reschedule request response
-    const approveRescheduleBtn = document.getElementById('approveRescheduleBtn');
-    const rejectRescheduleBtn = document.getElementById('rejectRescheduleBtn');
-    
-    if (approveRescheduleBtn && rejectRescheduleBtn) {
-        approveRescheduleBtn.addEventListener('click', function() {
-            respondToRescheduleRequest('approve');
-        });
-        
-        rejectRescheduleBtn.addEventListener('click', function() {
-            respondToRescheduleRequest('reject');
-        });
-    }
-    
-    function respondToRescheduleRequest(response) {
-        const requestId = document.getElementById('approveRescheduleBtn').getAttribute('data-request-id');
-        
-        $.ajax({
-            url: window.location.href,
-            method: 'POST',
-            data: {
-                action: 'respond_reschedule',
-                request_id: requestId,
-                response: response
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Close the modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('rescheduleRequestModal'));
-                    modal.hide();
-                    
-                    // Show success message
-                    showAlert('success', response.message);
-                    
-                    // Reload the page after a delay
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 2000);
-            } else {
-                    showAlert('danger', response.message);
-                }
-            },
-            error: function() {
-                showAlert('danger', 'An error occurred while processing your response.');
-            }
-        });
-    }
-    
-    // Initialize sessions UI
-    function initSessionsUI() {
-        // Initialize reschedule buttons
-        const rescheduleButtons = document.querySelectorAll('.reschedule-session');
-        rescheduleButtons.forEach(button => {
-        button.addEventListener('click', function() {
-                const sessionId = this.getAttribute('data-session-id');
-                document.getElementById('reschedule_session_id').value = sessionId;
-                
-                // Reset the form
-                document.getElementById('new_date').value = '';
-                document.getElementById('new_time').value = '';
-                document.getElementById('reschedule_reason').value = '';
-                
-                // Show the modal
-                const modal = new bootstrap.Modal(document.getElementById('rescheduleModal'));
-                modal.show();
-        });
+    // Remove active class from all filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
     });
+    
+    // Add active class to clicked button
+    document.querySelector(`.filter-btn[data-filter="${filter}"]`).classList.add('active');
+    
+    // Get all session rows
+    const rows = document.querySelectorAll('tr[data-status]');
+    console.log('Found ' + rows.length + ' rows to filter');
+    
+    let visibleCount = 0;
+    
+    // Show/hide rows based on filter
+    rows.forEach(row => {
+        const status = row.getAttribute('data-status');
+        if (filter === 'all' || status === filter) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    console.log(visibleCount + ' rows displayed after filtering');
+}
+
+function handleCompleteSession(sessionId) {
+    console.log('Complete button clicked for session ID:', sessionId);
+    
+    // Check if the session time has passed (should already be validated by PHP)
+    
+    // Show the rating modal if it exists
+    const ratingModal = document.getElementById('ratingModal');
+    if (ratingModal) {
+        // Set the session ID in the form
+        document.getElementById('session_id_rating').value = sessionId;
+                        
+        // Show the modal using Bootstrap
+        const modal = new bootstrap.Modal(ratingModal);
+        modal.show();
+            } else {
+        if (confirm('Are you sure you want to mark this session as completed?')) {
+            submitUpdateStatus(sessionId, 'completed');
+                    }
+    }
+}
+
+function handleRescheduleSession(sessionId) {
+    console.log('Reschedule button clicked for session ID:', sessionId);
+    
+    // Set the session ID in the reschedule form
+    const sessionIdInput = document.getElementById('reschedule_session_id');
+    if (sessionIdInput) {
+        sessionIdInput.value = sessionId;
+    }
+    
+    // Reset the form fields
+    const newDateInput = document.getElementById('new_date');
+    const newTimeInput = document.getElementById('new_time');
+    const reasonInput = document.getElementById('reschedule_reason');
+    
+    if (newDateInput) newDateInput.value = '';
+    if (newTimeInput) newTimeInput.value = '';
+    if (reasonInput) reasonInput.value = '';
+    
+    // Get the reschedule modal element
+    const rescheduleModal = document.getElementById('rescheduleModal');
+    if (rescheduleModal) {
+        // Show the modal using Bootstrap
+        const modal = new bootstrap.Modal(rescheduleModal);
+        modal.show();
+    } else {
+        alert('Error: Reschedule modal not found!');
+    }
+}
+
+function handleCancelSession(sessionId) {
+    console.log('Cancel button clicked for session ID:', sessionId);
+    
+    if (confirm('Are you sure you want to cancel this session?')) {
+        submitUpdateStatus(sessionId, 'cancelled');
+    }
+    }
+    
+function submitUpdateStatus(sessionId, status, rating, feedback) {
+    // Create form data for the AJAX request
+    const formData = new FormData();
+    formData.append('action', 'update_status');
+    formData.append('session_id', sessionId);
+    formData.append('status', status);
+    
+    if (rating) {
+        formData.append('rating', rating);
+    }
+    
+    if (feedback) {
+        formData.append('feedback', feedback);
+    }
+    
+    // Add a loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.style.position = 'fixed';
+    loadingDiv.style.top = '0';
+    loadingDiv.style.left = '0';
+    loadingDiv.style.width = '100%';
+    loadingDiv.style.height = '100%';
+    loadingDiv.style.backgroundColor = 'rgba(0,0,0,0.5)';
+    loadingDiv.style.display = 'flex';
+    loadingDiv.style.justifyContent = 'center';
+    loadingDiv.style.alignItems = 'center';
+    loadingDiv.style.zIndex = '9999';
+    loadingDiv.innerHTML = '<div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div>';
+    document.body.appendChild(loadingDiv);
+                    
+    // Send the AJAX request
+    fetch(window.location.pathname, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(result => {
+        // Remove loading indicator
+        document.body.removeChild(loadingDiv);
         
-        // Initialize view reschedule request buttons
-        const viewRequestButtons = document.querySelectorAll('.view-reschedule-request');
-        viewRequestButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const requestId = this.getAttribute('data-request-id');
-                const requesterName = this.getAttribute('data-requester');
-                const originalTime = this.getAttribute('data-original-time');
-                const newTime = this.getAttribute('data-new-time');
-                const reason = this.getAttribute('data-reason');
+        if (result.success) {
+            alert(result.message || 'Session status updated successfully!');
+            location.reload();
+            } else {
+            alert(result.message || 'Error updating session status');
+                }
+    })
+    .catch(error => {
+        // Remove loading indicator
+        if (document.body.contains(loadingDiv)) {
+            document.body.removeChild(loadingDiv);
+        }
+        
+        console.error('Error:', error);
+        alert('Error updating session: ' + error.message);
+        });
+    }
+    
+// Setup event listeners when the DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle rating submission from the modal
+    const submitRatingBtn = document.getElementById('submitRating');
+    if (submitRatingBtn) {
+        submitRatingBtn.addEventListener('click', function() {
+            const sessionId = document.getElementById('session_id_rating').value;
+            const rating = document.getElementById('rating_value').value;
+            const feedback = document.getElementById('feedback')?.value || '';
+            
+            if (!rating) {
+                alert('Please select a rating');
+                return;
+            }
+            
+            // Hide the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('ratingModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Submit the completion request with rating
+            submitUpdateStatus(sessionId, 'completed', rating, feedback);
+        });
+    }
+    
+    // Setup star rating in the modal
+    const ratingStars = document.querySelectorAll('.rating-stars i');
+    if (ratingStars.length > 0) {
+        ratingStars.forEach(star => {
+            star.addEventListener('click', function() {
+                const rating = this.dataset.rating;
+                document.getElementById('rating_value').value = rating;
                 
-                // Update modal content
-                document.getElementById('rescheduleRequestDetails').innerHTML = `
-                    <p><strong>${requesterName}</strong> has requested to reschedule a session:</p>
-                    <div class="mb-3">
-                        <div class="d-flex align-items-center mb-2">
-                            <div class="bg-light p-2 rounded me-3">
-                                <i class="bi bi-calendar-x text-danger"></i>
-        </div>
-                            <div>
-                                <div class="small text-muted">Original Time</div>
-                                <div class="fw-bold">${originalTime}</div>
-        </div>
-    </div>
-                        <div class="d-flex align-items-center">
-                            <div class="bg-light p-2 rounded me-3">
-                                <i class="bi bi-calendar-check text-success"></i>
-</div>
-                            <div>
-                                <div class="small text-muted">Requested New Time</div>
-                                <div class="fw-bold">${newTime}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <div class="fw-bold mb-1">Reason:</div>
-                        <div class="p-3 bg-light rounded">${reason}</div>
-                    </div>
-                `;
-                
-                // Set the request ID for response buttons
-                document.getElementById('approveRescheduleBtn').setAttribute('data-request-id', requestId);
-                document.getElementById('rejectRescheduleBtn').setAttribute('data-request-id', requestId);
-                
-                // Show the modal
-                const modal = new bootstrap.Modal(document.getElementById('rescheduleRequestModal'));
-                modal.show();
+                // Update visual state of stars
+                ratingStars.forEach(s => {
+                    if (s.dataset.rating <= rating) {
+                        s.classList.add('text-warning');
+                    } else {
+                        s.classList.remove('text-warning');
+                    }
+                });
             });
         });
     }
     
-    // Helper function to show alerts
-    function showAlert(type, message) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
+    // Handle reschedule form submission
+    const submitRescheduleBtn = document.getElementById('submitRescheduleBtn');
+    if (submitRescheduleBtn) {
+        submitRescheduleBtn.addEventListener('click', function() {
+            const form = document.getElementById('rescheduleForm');
+            if (!form) {
+                alert('Error: Form not found!');
+                return;
+            }
+            
+            const sessionId = document.getElementById('reschedule_session_id').value;
+            const newDate = document.getElementById('new_date').value;
+            const newTime = document.getElementById('new_time').value;
+            const reason = document.getElementById('reschedule_reason').value;
+            
+            // Validate inputs
+            if (!newDate) {
+                alert('Please select a date');
+                return;
+            }
+            
+            if (!newTime) {
+                alert('Please select a time');
+                return;
+            }
+            
+            if (!reason) {
+                alert('Please provide a reason for rescheduling');
+                return;
+            }
+            
+            // Combine date and time
+            const newDateTime = `${newDate}T${newTime}:00`;
+            
+            // Create form data for the AJAX request
+            const formData = new FormData();
+            formData.append('action', 'request_reschedule');
+            formData.append('session_id', sessionId);
+            formData.append('new_time', newDateTime);
+            formData.append('reason', reason);
+            
+            // Add a loading indicator
+            const submitButton = submitRescheduleBtn;
+            const originalText = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Submitting...';
+                
+            // Send the AJAX request
+            fetch(window.location.pathname, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(result => {
+                // Reset button state
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+                
+                if (result.success) {
+                    // Hide the modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('rescheduleModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                    
+                    alert(result.message || 'Reschedule request submitted successfully!');
         
-        // Add to the top of the page
-        document.querySelector('.container').prepend(alertDiv);
-        
-        // Auto-dismiss after 5 seconds
+                    // Reload the page
         setTimeout(function() {
-            alertDiv.classList.remove('show');
-            setTimeout(() => alertDiv.remove(), 150);
-        }, 5000);
+                        location.reload();
+                    }, 1000);
+                } else {
+                    alert(result.message || 'Error submitting reschedule request');
+                }
+            })
+            .catch(error => {
+                // Reset button state
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+                
+                console.error('Error:', error);
+                alert('Error submitting reschedule request: ' + error.message);
+            });
+        });
     }
 });
 </script>
@@ -2253,7 +1869,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Add FullCalendar JS and its dependencies -->
 </script>
 
-<!-- Add session actions script -->
-<script src="../assets/js/session-actions.js"></script>
+<!-- REMOVE session actions script to rely on inline handlers for this page -->
+<!-- <script src="../assets/js/session-actions.js"></script> -->
 
 <?php include __DIR__ . '/../includes/footer.php'; ?> 

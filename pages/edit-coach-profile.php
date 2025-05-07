@@ -88,6 +88,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
+    // Function to convert YouTube URL to embed format if needed
+    function convertToEmbedUrl($url) {
+        if (empty($url)) {
+            return '';
+        }
+        
+        // Regular expressions to match YouTube URLs
+        $pattern = '/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/';
+        
+        // Extract video ID and convert to embed URL
+        if (preg_match($pattern, $url, $matches)) {
+            $videoId = $matches[1];
+            return "https://www.youtube.com/embed/{$videoId}";
+        }
+        
+        // If not a YouTube URL or already an embed URL, return as is
+        return $url;
+    }
+    
+    // Convert YouTube URL to embed format
+    $video_url = convertToEmbedUrl($video_url);
+    
     // Process if no errors
     if (empty($errors)) {
         try {
@@ -154,6 +176,9 @@ include '../includes/header.php';
                     </a>
                     <a href="edit-coach-services.php" class="list-group-item list-group-item-action">
                         <i class="bi bi-list-check"></i> Service Tiers
+                    </a>
+                    <a href="service-analytics.php" class="list-group-item list-group-item-action">
+                        <i class="bi bi-graph-up"></i> Service Analytics
                     </a>
                     <a href="coach-profile.php?id=<?= $coach['coach_id'] ?>" class="list-group-item list-group-item-action">
                         <i class="bi bi-eye"></i> View Public Profile
@@ -269,7 +294,7 @@ include '../includes/header.php';
                                     <label for="video_url" class="form-label">Introduction Video URL</label>
                                     <input type="url" class="form-control" id="video_url" name="video_url" 
                                            value="<?= htmlspecialchars($coach['video_url']) ?>">
-                                    <div class="form-text">YouTube/Vimeo embed URL for your introduction video (optional)</div>
+                                    <div class="form-text">Add a YouTube video URL (e.g., https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID)</div>
                                 </div>
                             </div>
                         </div>

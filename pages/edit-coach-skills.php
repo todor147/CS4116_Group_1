@@ -206,6 +206,9 @@ include '../includes/header.php';
                     <a href="edit-coach-services.php" class="list-group-item list-group-item-action">
                         <i class="bi bi-list-check"></i> Service Tiers
                     </a>
+                    <a href="service-analytics.php" class="list-group-item list-group-item-action">
+                        <i class="bi bi-graph-up"></i> Service Analytics
+                    </a>
                     <a href="coach-profile.php?id=<?= $coach['coach_id'] ?>" class="list-group-item list-group-item-action">
                         <i class="bi bi-eye"></i> View Public Profile
                     </a>
