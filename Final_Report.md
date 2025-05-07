@@ -131,6 +131,6 @@ The admin interface provides the necessary tools to maintain platform integrity,
 
 ## Video Pitch
 
-Our video pitch demonstrating the key features of EduCoach can be accessed at: [https://www.youtube.com/watch?v=educoach_demo](https://www.youtube.com/watch?v=educoach_demo)
+Our video pitch demonstrating the key features of EduCoach can be accessed at: ([https://www.youtube.com/watch?v=educoach_demo](https://youtu.be/6D7Ge7wrek8))
 
 The video provides a walkthrough of the platform from both the learner and coach perspectives, highlighting the user journey from registration to session completion. 
