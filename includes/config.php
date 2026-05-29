@@ -13,8 +13,8 @@ if (defined('EDUCOACH_BOOTSTRAPPED')) {
 define('EDUCOACH_BOOTSTRAPPED', true);
 
 // Start output buffering before anything else. This makes header()/redirects
-// resilient to stray output (e.g. whitespace after ?> in legacy includes) on
-// servers where output_buffering is off — which silently breaks redirects.
+// resilient to stray output (e.g. whitespace after a closing PHP tag in legacy
+// includes) on servers where output_buffering is off, which breaks redirects.
 if (ob_get_level() === 0) {
     ob_start();
 }
