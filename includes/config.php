@@ -12,6 +12,13 @@ if (defined('EDUCOACH_BOOTSTRAPPED')) {
 }
 define('EDUCOACH_BOOTSTRAPPED', true);
 
+// Start output buffering before anything else. This makes header()/redirects
+// resilient to stray output (e.g. whitespace after ?> in legacy includes) on
+// servers where output_buffering is off — which silently breaks redirects.
+if (ob_get_level() === 0) {
+    ob_start();
+}
+
 define('APP_ROOT', dirname(__DIR__));
 
 /* -------------------------------------------------------------------------
@@ -85,7 +92,8 @@ define('IS_PRODUCTION', APP_ENV === 'production');
 
 error_reporting(E_ALL);
 ini_set('log_errors', '1');
-ini_set('error_log', APP_ROOT . '/logs/php_errors.log');
+// In containers, log to stderr so the platform (Render) captures it; locally, use a file.
+ini_set('error_log', IS_PRODUCTION ? 'php://stderr' : APP_ROOT . '/logs/php_errors.log');
 // Never leak stack traces / warnings to visitors in production.
 ini_set('display_errors', IS_PRODUCTION ? '0' : '1');
 

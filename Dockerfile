@@ -24,6 +24,7 @@ RUN { \
     echo 'expose_php = Off'; \
     echo 'display_errors = Off'; \
     echo 'log_errors = On'; \
+    echo 'output_buffering = 4096'; \
     echo 'upload_max_filesize = 8M'; \
     echo 'post_max_size = 10M'; \
     } > /usr/local/etc/php/conf.d/educoach.ini
