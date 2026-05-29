@@ -1,128 +1,101 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/../php_errors.log');
+/**
+ * EduCoach — database connection (PDO/MySQL).
+ *
+ * Configuration comes entirely from environment variables, so the same code
+ * runs locally, in Docker, and on any free host without edits. Two forms are
+ * supported:
+ *
+ *   1. A single DATABASE_URL  (e.g. mysql://user:pass@host:3306/dbname)
+ *   2. Discrete DB_* variables (DB_HOST, DB_NAME, DB_USER, DB_PASS, DB_PORT)
+ *
+ * Optional TLS (required by some managed providers such as TiDB Cloud / Aiven):
+ *   DB_SSL=true            enable TLS
+ *   DB_SSL_CA=/path/ca.pem path to a CA bundle (optional but recommended)
+ *
+ * Exposes a ready-to-use $pdo instance.
+ */
 
-// Load environment variables if .env file exists
-if (file_exists(__DIR__ . '/../.env')) {
-    $envVars = parse_ini_file(__DIR__ . '/../.env', false, INI_SCANNER_RAW);
-    if ($envVars === false) {
-        die("Error loading .env file");
+require_once __DIR__ . '/config.php';
+
+/** Resolve connection settings from the environment. */
+function db_settings(): array
+{
+    $url = env('DATABASE_URL');
+    if ($url) {
+        $p = parse_url($url);
+        return [
+            'host'    => $p['host'] ?? 'localhost',
+            'port'    => (int) ($p['port'] ?? 3306),
+            'name'    => isset($p['path']) ? ltrim($p['path'], '/') : '',
+            'user'    => isset($p['user']) ? urldecode($p['user']) : '',
+            'pass'    => isset($p['pass']) ? urldecode($p['pass']) : '',
+            'charset' => 'utf8mb4',
+        ];
     }
-    foreach ($envVars as $key => $value) {
-        $_ENV[$key] = trim($value);
-    }
+
+    return [
+        'host'    => env('DB_HOST', 'localhost'),
+        'port'    => (int) env('DB_PORT', 3306),
+        'name'    => env('DB_NAME', 'cs4116_marketplace'),
+        'user'    => env('DB_USER', 'root'),
+        'pass'    => env('DB_PASS', ''),
+        'charset' => env('DB_CHARSET', 'utf8mb4'),
+    ];
 }
 
-// Detect environment - check if running on InfinityFree or localhost
-$server_name = $_SERVER['SERVER_NAME'] ?? '';
-$is_infinity_free = (strpos($server_name, 'infinityfree') !== false || 
-                     strpos($server_name, 'educoach') !== false);
+$cfg = db_settings();
 
-// Database connection settings
-if ($is_infinity_free) {
-    // InfinityFree hosting environment
-    $host = 'sql106.infinityfree.com'; // Use the actual remote MySQL server
-    $db_name = 'if0_38672207_cs4116_marketplace'; // Correct database name from phpMyAdmin
-    $username = 'if0_38672207';
-    $password = '7J3ce73nvOIXHMH'; 
-    $charset = 'utf8mb4';
-    $port = 3306; // Explicitly set the MySQL port
-} else {
-    // Local development environment
-    $host = 'localhost'; 
-    $db_name = 'cs4116_marketplace';
-    $username = 'root';
-    $password = '';
-    $charset = 'utf8mb4';
-    $port = $_ENV['DB_PORT'] ?? '3306';
-}
+$dsn = sprintf(
+    'mysql:host=%s;port=%d;dbname=%s;charset=%s',
+    $cfg['host'],
+    $cfg['port'],
+    $cfg['name'],
+    $cfg['charset']
+);
 
-// Build connection string (DSN)
-$dsn = "mysql:host=$host;port=$port;dbname=$db_name;charset=$charset";
-
-// Set PDO options - simpler is better
 $options = [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES => false,
-    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
+    PDO::ATTR_EMULATE_PREPARES   => false,
 ];
 
-// Simple connection approach - no fancy fallbacks
-try {
-    // Create PDO instance
-    $pdo = new PDO($dsn, $username, $password, $options);
-    
-    // Set timezone
-    date_default_timezone_set('Europe/Dublin');
-    
-    // Set character set
-    $pdo->exec("SET NAMES utf8mb4");
-    $pdo->exec("SET CHARACTER SET utf8mb4");
-    
-    // Only proceed with table creation if connection was successful
-    if ($is_infinity_free) {
-        // Create database tables if they don't exist
-        try {
-            // Create Inquiries table
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS Inquiries (
-                    inquiry_id INT AUTO_INCREMENT PRIMARY KEY,
-                    learner_id INT NOT NULL,
-                    coach_id INT NOT NULL,
-                    message TEXT NOT NULL,
-                    status ENUM('pending', 'accepted', 'rejected') DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (learner_id) REFERENCES Users(user_id),
-                    FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id)
-                )
-            ");
-            
-            // Create CoachTimeSlots table
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS CoachTimeSlots (
-                    slot_id INT AUTO_INCREMENT PRIMARY KEY,
-                    coach_id INT NOT NULL,
-                    start_time DATETIME NOT NULL,
-                    end_time DATETIME NOT NULL,
-                    status ENUM('available', 'booked', 'unavailable') DEFAULT 'available',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (coach_id) REFERENCES Coaches(coach_id)
-                )
-            ");
-        } catch (PDOException $e) {
-            // Log table creation errors but don't die - tables might already exist
-            error_log("Table creation warning: " . $e->getMessage());
-        }
+// Optional TLS for managed database providers.
+if (env('DB_SSL', false)) {
+    $ca = env('DB_SSL_CA');
+    if ($ca) {
+        $options[PDO::MYSQL_ATTR_SSL_CA] = $ca;
+    } else {
+        // Encrypt the connection even when a CA bundle isn't supplied.
+        $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
     }
-    
+}
+
+try {
+    $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], $options);
 } catch (PDOException $e) {
-    // Clean error message
-    $error_message = $e->getMessage();
-    
-    // Create user-friendly error page
-    echo '<div style="background-color: #f8d7da; padding: 20px; border-radius: 5px; margin: 20px; font-family: Arial, sans-serif;">';
-    echo '<h2 style="color: #721c24;">Database Connection Error</h2>';
-    echo '<p><strong>Server:</strong> ' . htmlspecialchars($host) . '</p>';
-    echo '<p><strong>Database:</strong> ' . htmlspecialchars($db_name) . '</p>';
-    echo '<p><strong>Username:</strong> ' . htmlspecialchars($username) . '</p>';
-    echo '<p><strong>PDO Error:</strong> ' . htmlspecialchars($error_message) . '</p>';
-    echo '<p><strong>Server Name:</strong> ' . htmlspecialchars($server_name) . '</p>';
-    echo '<p><strong>PHP Version:</strong> ' . phpversion() . '</p>';
-    
-    echo '<h3>Possible Solutions:</h3>';
-    echo '<ul>';
-    echo '<li>Check if the database exists on the server</li>';
-    echo '<li>Verify your database username and password</li>';
-    echo '<li>Make sure your database host is correct (InfinityFree usually requires "localhost")</li>';
-    echo '<li>Check if your hosting account has MySQL privileges</li>';
-    echo '</ul>';
-    echo '</div>';
-    
-    // Log error for debugging
-    error_log("Database connection failed: " . $error_message);
+    error_log('Database connection failed: ' . $e->getMessage());
+
+    http_response_code(503);
+    $detail = IS_PRODUCTION ? '' : '<p style="color:#666;font-size:.9rem">' . e($e->getMessage()) . '</p>';
+    echo <<<HTML
+        <!doctype html>
+        <html lang="en"><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Service unavailable — EduCoach</title>
+        <style>
+            body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#f5f7fb;
+                 display:grid;place-items:center;min-height:100vh;margin:0;color:#1f2937}
+            .box{background:#fff;border-radius:16px;padding:2.5rem;max-width:30rem;text-align:center;
+                 box-shadow:0 10px 30px rgba(0,0,0,.08)}
+            h1{margin:.25rem 0 1rem;font-size:1.4rem}
+        </style></head>
+        <body><div class="box">
+            <h1>We can't reach the database right now</h1>
+            <p>Please try again in a moment. If this keeps happening, the database
+               connection settings may need to be checked.</p>
+            $detail
+        </div></body></html>
+        HTML;
     exit;
 }
-?> 

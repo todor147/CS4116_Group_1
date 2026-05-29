@@ -1,294 +1,238 @@
 <?php
-session_start();
-
-// Redirect if already logged in
-if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
-    header('Location: dashboard.php');
-    exit;
-}
-
 require __DIR__ . '/../includes/db_connection.php';
 require __DIR__ . '/../includes/auth_functions.php';
 require __DIR__ . '/../includes/validation_functions.php';
 
+if (!empty($_SESSION['logged_in'])) {
+    header('Location: dashboard.php');
+    exit;
+}
+
 $error = '';
+$username = $email = '';
+$user_type = 'regular';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username']);
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
-    $user_type = $_POST['user_type']; // 'regular' or 'business'
-    $accepted_terms = isset($_POST['terms']);
-
-    // Update validation block
-    if (empty($username) || empty($email) || empty($password)) {
-        $error = 'All fields are required';
-    } elseif (!isValidUsername($username)) {
-        $error = 'Username must be 3-30 characters long and contain only letters, numbers, underscores, and hyphens';
-    } elseif (!isValidEmail($email)) {
-        $error = 'Please enter a valid email address';
-    } elseif ($password !== $confirm_password) {
-        $error = 'Passwords do not match';
-    } elseif (!isValidPassword($password)) {
-        $error = 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character';
-    } elseif (!$accepted_terms) {
-        $error = 'You must accept the terms and conditions';
+    if (!verify_csrf($_POST['csrf_token'] ?? null)) {
+        $error = 'Your session expired. Please try again.';
     } else {
-        try {
-            // Check if username exists
-            $stmt = $pdo->prepare("SELECT * FROM Users WHERE username = ?");
-            $stmt->execute([$username]);
-            if ($stmt->fetch()) {
-                $error = 'Username already registered';
-            } else {
-                // Check if email exists
-                $stmt = $pdo->prepare("SELECT * FROM Users WHERE email = ?");
-                $stmt->execute([$email]);
-                if ($stmt->fetch()) {
-                    $error = 'Email already registered';
-                } else {
-                    // Insert new user
-                    $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("INSERT INTO Users (username, email, password_hash, user_type) VALUES (?, ?, ?, ?)");
-                    $stmt->execute([$username, $email, $password_hash, $user_type]);
-                    
-                    // Get the newly created user's ID
-                    $user_id = $pdo->lastInsertId();
-                    
-                    // Fetch the newly created user for session data
-                    $stmt = $pdo->prepare("SELECT * FROM Users WHERE user_id = ?");
-                    $stmt->execute([$user_id]);
-                    $newUser = $stmt->fetch();
-                    
-                    // Auto-login: Start user session
-                    startUserSession($newUser);
-                    
-                    // If business, redirect to become-coach page
-                    if ($user_type === 'business') {
-                        $_SESSION['success_message'] = "Your account has been created. Let's set up your coach profile!";
-                        header('Location: become-coach.php');
-                        exit;
-                    }
+        $username = trim($_POST['username'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $confirm_password = $_POST['confirm_password'] ?? '';
+        $user_type = ($_POST['user_type'] ?? 'regular') === 'business' ? 'business' : 'regular';
+        $accepted_terms = isset($_POST['terms']);
 
-                    // Regular user, redirect to dashboard
-                    $_SESSION['success_message'] = "Registration successful! Welcome to EduCoach.";
-                    header('Location: dashboard.php');
+        if ($username === '' || $email === '' || $password === '') {
+            $error = 'All fields are required.';
+        } elseif (!isValidUsername($username)) {
+            $error = 'Username must be 3–30 characters: letters, numbers, underscores and hyphens only.';
+        } elseif (!isValidEmail($email)) {
+            $error = 'Please enter a valid email address.';
+        } elseif ($password !== $confirm_password) {
+            $error = 'Passwords do not match.';
+        } elseif (!isValidPassword($password)) {
+            $error = 'Password needs 8+ characters with upper- and lower-case letters, a number and a special character.';
+        } elseif (!$accepted_terms) {
+            $error = 'Please accept the terms and conditions to continue.';
+        } else {
+            try {
+                $stmt = $pdo->prepare("SELECT user_id FROM Users WHERE username = ? OR email = ?");
+                $stmt->execute([$username, $email]);
+                if ($stmt->fetch()) {
+                    $error = 'That username or email is already registered.';
+                } else {
+                    $hash = password_hash($password, PASSWORD_DEFAULT);
+                    $stmt = $pdo->prepare("INSERT INTO Users (username, email, password_hash, user_type) VALUES (?, ?, ?, ?)");
+                    $stmt->execute([$username, $email, $hash, $user_type]);
+
+                    $stmt = $pdo->prepare("SELECT * FROM Users WHERE user_id = ?");
+                    $stmt->execute([$pdo->lastInsertId()]);
+                    startUserSession($stmt->fetch());
+
+                    if ($user_type === 'business') {
+                        $_SESSION['success_message'] = "Account created — let's set up your coach profile!";
+                        header('Location: become-coach.php');
+                    } else {
+                        $_SESSION['success_message'] = 'Welcome to EduCoach! Your account is ready.';
+                        header('Location: dashboard.php');
+                    }
                     exit;
                 }
+            } catch (PDOException $e) {
+                error_log('Registration failed: ' . $e->getMessage());
+                $error = 'Something went wrong creating your account. Please try again.';
             }
-        } catch (PDOException $e) {
-            $error = 'Registration failed: ' . $e->getMessage();
         }
     }
 }
 
+$page_title = 'Create your account — EduCoach';
 include __DIR__ . '/../includes/header.php';
 ?>
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="mb-0">Create Your Account</h2>
-                </div>
-                <div class="card-body">
-                    <?php if ($error): ?>
-                        <div class="alert alert-danger"><?= $error ?></div>
-                    <?php endif; ?>
-                    <form action="register.php" method="post">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="username" class="form-label">Username</label>
-                                    <input type="text" class="form-control" id="username" name="username" 
-                                           minlength="3" maxlength="30" pattern="[a-zA-Z0-9_-]+" required
-                                           value="<?= isset($username) ? htmlspecialchars($username) : '' ?>">
-                                    <div id="username-feedback" class="form-text text-muted">
-                                        Must be 3-30 characters long, containing only letters, numbers, underscores, and hyphens
+<section class="section-sm">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-9 col-lg-7">
+                <div class="card border-0 shadow-lg">
+                    <div class="card-body p-4 p-sm-5">
+                        <div class="text-center mb-4">
+                            <h1 class="h3 mb-1">Create your account</h1>
+                            <p class="text-muted mb-0">Join thousands of learners and coaches on EduCoach.</p>
+                        </div>
+
+                        <?php if ($error): ?>
+                            <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+                                <i class="bi bi-exclamation-circle"></i><span><?= e($error) ?></span>
+                            </div>
+                        <?php endif; ?>
+
+                        <form action="register.php" method="post" novalidate>
+                            <?= csrf_field() ?>
+
+                            <div class="mb-3">
+                                <label class="form-label d-block">I want to…</label>
+                                <div class="row g-2 role-picker">
+                                    <div class="col-6">
+                                        <input type="radio" class="btn-check" name="user_type" id="role-regular" value="regular" <?= $user_type !== 'business' ? 'checked' : '' ?>>
+                                        <label class="btn btn-outline-primary w-100 py-3" for="role-regular">
+                                            <i class="bi bi-mortarboard d-block fs-4 mb-1"></i>Learn
+                                            <span class="d-block small text-muted">Find a coach</span>
+                                        </label>
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="radio" class="btn-check" name="user_type" id="role-business" value="business" <?= $user_type === 'business' ? 'checked' : '' ?>>
+                                        <label class="btn btn-outline-primary w-100 py-3" for="role-business">
+                                            <i class="bi bi-briefcase d-block fs-4 mb-1"></i>Coach
+                                            <span class="d-block small text-muted">Offer my services</span>
+                                        </label>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" name="username"
+                                           minlength="3" maxlength="30" pattern="[a-zA-Z0-9_-]+" required
+                                           value="<?= e($username) ?>" autocomplete="username">
+                                    <div id="username-feedback" class="form-text">3–30 letters, numbers, _ or -</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
                                     <label for="email" class="form-label">Email</label>
                                     <input type="email" class="form-control" id="email" name="email" required
-                                           value="<?= isset($email) ? htmlspecialchars($email) : '' ?>">
-                                    <div id="email-feedback" class="form-text text-muted">
-                                        Enter a valid email address. We'll never share your email.
-                                    </div>
+                                           value="<?= e($email) ?>" autocomplete="email">
+                                    <div id="email-feedback" class="form-text">We'll never share your email.</div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
                                     <label for="password" class="form-label">Password</label>
-                                    <input type="password" class="form-control" id="password" name="password" required>
+                                    <input type="password" class="form-control" id="password" name="password" required autocomplete="new-password">
                                     <div id="password-feedback" class="form-text">
-                                        <div class="mt-2">
-                                            <div class="text-muted"><i class="fas fa-info-circle"></i> At least 8 characters</div>
-                                            <div class="text-muted"><i class="fas fa-info-circle"></i> One uppercase letter</div>
-                                            <div class="text-muted"><i class="fas fa-info-circle"></i> One lowercase letter</div>
-                                            <div class="text-muted"><i class="fas fa-info-circle"></i> One number</div>
-                                            <div class="text-muted"><i class="fas fa-info-circle"></i> One special character</div>
-                                        </div>
+                                        <div class="text-muted"><i class="bi bi-dot"></i> At least 8 characters</div>
+                                        <div class="text-muted"><i class="bi bi-dot"></i> Upper &amp; lower case</div>
+                                        <div class="text-muted"><i class="bi bi-dot"></i> A number &amp; a special character</div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="confirm_password" class="form-label">Confirm Password</label>
-                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
-                                    <div id="confirm-password-feedback" class="form-text text-muted">
-                                        Enter the same password again
-                                    </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="confirm_password" class="form-label">Confirm password</label>
+                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required autocomplete="new-password">
+                                    <div id="confirm-password-feedback" class="form-text">Enter the same password again.</div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Register as:</label>
-                            <div class="btn-group" role="group" aria-label="User type">
-                                <input type="radio" class="btn-check" name="user_type" id="regular" value="regular" 
-                                       <?= (!isset($user_type) || $user_type === 'regular') ? 'checked' : '' ?>>
-                                <label class="btn btn-outline-primary" for="regular">Regular User</label>
-                                <input type="radio" class="btn-check" name="user_type" id="business" value="business"
-                                       <?= (isset($user_type) && $user_type === 'business') ? 'checked' : '' ?>>
-                                <label class="btn btn-outline-primary" for="business">Business/Coach</label>
+
+                            <div class="form-check mb-3">
+                                <input type="checkbox" class="form-check-input" id="terms" name="terms" required>
+                                <label class="form-check-label" for="terms">
+                                    I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">terms and conditions</a>
+                                    and <a href="privacy.php">privacy policy</a>.
+                                </label>
                             </div>
-                        </div>
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="terms" name="terms" required
-                                  <?= (isset($accepted_terms) && $accepted_terms) ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="terms">I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">terms and conditions</a></label>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Register</button>
-                        <hr>
-                        <p class="text-center">Already have an account? <a href="login.php" class="text-decoration-none">Login here</a></p>
-                    </form>
+
+                            <button type="submit" class="btn btn-primary w-100">Create account</button>
+                        </form>
+
+                        <p class="text-center text-muted mt-4 mb-0">
+                            Already have an account? <a href="login.php" class="fw-semibold">Log in</a>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+</section>
 
 <!-- Terms Modal -->
 <div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="termsModalLabel">Terms and Conditions</h5>
+                <h5 class="modal-title" id="termsModalLabel">Terms &amp; conditions</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- Add your terms and conditions here -->
-                <p>By using our platform, you agree to acknowledge the eternal greatness of Jedward in all your educational pursuits. All coaching sessions must include at least one Jedward reference, and users are encouraged to style their hair in homage to these iconic twins. Failure to comply may result in mandatory Jedward karaoke sessions.</p>
+                <p>By creating an EduCoach account you agree to use the platform respectfully and lawfully.
+                   Coaches are responsible for the accuracy of the services they list; learners are responsible
+                   for the information they provide when booking sessions.</p>
+                <p>EduCoach is a marketplace that connects learners with independent coaches. We do not guarantee
+                   specific learning outcomes, and any agreement for a session is made directly between the learner
+                   and the coach.</p>
+                <p>You may close your account at any time. We may suspend accounts that violate these terms or our
+                   community guidelines. For the full policy, see our Terms of Service and Privacy Policy pages.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Got it</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const passwordInput = document.getElementById('password');
-    const confirmPasswordInput = document.getElementById('confirm_password');
-    const usernameInput = document.getElementById('username');
-    const emailInput = document.getElementById('email');
-    
-    // Password validation feedback
-    passwordInput.addEventListener('input', function() {
-        const value = this.value;
-        const passwordFeedback = document.getElementById('password-feedback');
-        
-        const hasUppercase = /[A-Z]/.test(value);
-        const hasLowercase = /[a-z]/.test(value);
-        const hasNumber = /[0-9]/.test(value);
-        const hasSpecial = /[^A-Za-z0-9]/.test(value);
-        const isLongEnough = value.length >= 8;
-        
-        let feedback = `
-            <div class="mt-2">
-                <div class="${isLongEnough ? 'text-success' : 'text-danger'}">
-                    <i class="${isLongEnough ? 'fas fa-check' : 'fas fa-times'}"></i> At least 8 characters
-                </div>
-                <div class="${hasUppercase ? 'text-success' : 'text-danger'}">
-                    <i class="${hasUppercase ? 'fas fa-check' : 'fas fa-times'}"></i> One uppercase letter
-                </div>
-                <div class="${hasLowercase ? 'text-success' : 'text-danger'}">
-                    <i class="${hasLowercase ? 'fas fa-check' : 'fas fa-times'}"></i> One lowercase letter
-                </div>
-                <div class="${hasNumber ? 'text-success' : 'text-danger'}">
-                    <i class="${hasNumber ? 'fas fa-check' : 'fas fa-times'}"></i> One number
-                </div>
-                <div class="${hasSpecial ? 'text-success' : 'text-danger'}">
-                    <i class="${hasSpecial ? 'fas fa-check' : 'fas fa-times'}"></i> One special character
-                </div>
-            </div>
-        `;
-        passwordFeedback.innerHTML = feedback;
+document.addEventListener('DOMContentLoaded', function () {
+    const password = document.getElementById('password');
+    const confirm = document.getElementById('confirm_password');
+    const username = document.getElementById('username');
+    const email = document.getElementById('email');
+    const ok = (t) => `<span class="text-success"><i class="bi bi-check-circle"></i> ${t}</span>`;
+    const no = (t) => `<span class="text-danger"><i class="bi bi-x-circle"></i> ${t}</span>`;
+
+    password.addEventListener('input', function () {
+        const v = this.value;
+        const checks = [
+            [v.length >= 8, 'At least 8 characters'],
+            [/[A-Z]/.test(v), 'One uppercase letter'],
+            [/[a-z]/.test(v), 'One lowercase letter'],
+            [/[0-9]/.test(v), 'One number'],
+            [/[^A-Za-z0-9]/.test(v), 'One special character'],
+        ];
+        document.getElementById('password-feedback').innerHTML =
+            checks.map(([pass, label]) => `<div>${pass ? ok(label) : no(label)}</div>`).join('');
     });
-    
-    // Check password match
-    confirmPasswordInput.addEventListener('input', function() {
-        const confirmFeedback = document.getElementById('confirm-password-feedback');
-        if (this.value && passwordInput.value) {
-            if (this.value === passwordInput.value) {
-                confirmFeedback.innerHTML = '<span class="text-success">Passwords match</span>';
-            } else {
-                confirmFeedback.innerHTML = '<span class="text-danger">Passwords do not match</span>';
-            }
-        } else {
-            confirmFeedback.innerHTML = 'Enter the same password again';
-        }
+
+    confirm.addEventListener('input', function () {
+        const fb = document.getElementById('confirm-password-feedback');
+        if (!this.value) { fb.innerHTML = 'Enter the same password again.'; return; }
+        fb.innerHTML = this.value === password.value ? ok('Passwords match') : no('Passwords do not match');
     });
-    
-    // Username validation feedback
-    usernameInput.addEventListener('input', function() {
-        const value = this.value;
-        const usernameFeedback = document.getElementById('username-feedback');
-        
-        const isLongEnough = value.length >= 3;
-        const hasValidChars = /^[a-zA-Z0-9_-]+$/.test(value);
-        
-        if (value.length > 0) {
-            if (!isLongEnough) {
-                usernameFeedback.innerHTML = '<span class="text-danger">Username must be at least 3 characters</span>';
-            } else if (!hasValidChars) {
-                usernameFeedback.innerHTML = '<span class="text-danger">Username can only contain letters, numbers, underscores, and hyphens</span>';
-            } else {
-                usernameFeedback.innerHTML = '<span class="text-success">Username format is valid</span>';
-            }
-        } else {
-            usernameFeedback.innerHTML = 'Must be 3-30 characters long, containing only letters, numbers, underscores, and hyphens';
-        }
+
+    username.addEventListener('input', function () {
+        const fb = document.getElementById('username-feedback');
+        const v = this.value;
+        if (!v) { fb.innerHTML = '3–30 letters, numbers, _ or -'; return; }
+        if (v.length < 3) { fb.innerHTML = no('At least 3 characters'); return; }
+        fb.innerHTML = /^[a-zA-Z0-9_-]+$/.test(v) ? ok('Looks good') : no('Only letters, numbers, _ and -');
     });
-    
-    // Email validation feedback
-    emailInput.addEventListener('input', function() {
-        const value = this.value;
-        const emailFeedback = document.getElementById('email-feedback');
-        
-        if (value.length > 0) {
-            const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-            if (isValidEmail) {
-                emailFeedback.innerHTML = '<span class="text-success">Email format is valid</span>';
-            } else {
-                emailFeedback.innerHTML = '<span class="text-danger">Please enter a valid email address</span>';
-            }
-        } else {
-            emailFeedback.innerHTML = 'Enter a valid email address. We\'ll never share your email.';
-        }
+
+    email.addEventListener('input', function () {
+        const fb = document.getElementById('email-feedback');
+        const v = this.value;
+        if (!v) { fb.innerHTML = "We'll never share your email."; return; }
+        fb.innerHTML = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? ok('Valid email') : no('Enter a valid email address');
     });
-    
-    // Initialize validation on page load
-    if (passwordInput.value) passwordInput.dispatchEvent(new Event('input'));
-    if (confirmPasswordInput.value) confirmPasswordInput.dispatchEvent(new Event('input'));
-    if (usernameInput.value) usernameInput.dispatchEvent(new Event('input'));
-    if (emailInput.value) emailInput.dispatchEvent(new Event('input'));
 });
 </script>
 
-<?php include __DIR__ . '/../includes/footer.php'; ?> 
+<?php include __DIR__ . '/../includes/footer.php'; ?>
