@@ -1,6 +1,6 @@
 <?php
-$pageTitle = "Maria Rodriguez's Success Story - EduCoach";
-include_once '../includes/header.php';
+$page_title = "Maria Rodriguez's Success Story - EduCoach";
+include_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container my-5">
@@ -8,8 +8,8 @@ include_once '../includes/header.php';
         <div class="col-12">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="../index.php">Home</a></li>
-                    <li class="breadcrumb-item"><a href="../pages/success-stories.php">Success Stories</a></li>
+                    <li class="breadcrumb-item"><a href="../home.php">Home</a></li>
+                    <li class="breadcrumb-item"><a href="../success-stories.php">Success Stories</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Maria Rodriguez</li>
                 </ol>
             </nav>
@@ -59,11 +59,11 @@ include_once '../includes/header.php';
             <p>For Maria, the greatest benefit has been freedom. "I now teach winter sessions from my family home in Buenos Aires. I can care for my elderly mother while maintaining my career. This flexibility would be impossible in traditional academia."</p>
             
             <div class="mt-5">
-                <a href="../pages/success-stories.php" class="btn btn-outline-primary"><i class="fas fa-arrow-left me-2"></i>Back to Success Stories</a>
+                <a href="../success-stories.php" class="btn btn-outline-primary"><i class="fas fa-arrow-left me-2"></i>Back to Success Stories</a>
                 <a href="../pages/signup.php" class="btn btn-primary ms-3">Start Your Coaching Journey<i class="fas fa-arrow-right ms-2"></i></a>
             </div>
         </div>
     </div>
 </div>
 
-<?php include_once '../includes/footer.php'; ?> 
+<?php include_once __DIR__ . '/../../includes/footer.php'; ?> 

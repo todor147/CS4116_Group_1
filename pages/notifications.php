@@ -117,18 +117,19 @@ try {
     $per_page = 10;
     $offset = ($page - 1) * $per_page;
     
+    // LIMIT/OFFSET are inlined as integers: native prepared statements reject
+    // them as bound string parameters ("Incorrect arguments to LIMIT").
+    $per_page = (int) $per_page;
+    $offset = (int) $offset;
     $query = "
-        SELECT * FROM Notifications 
-        WHERE user_id = ? 
+        SELECT * FROM Notifications
+        WHERE user_id = ?
         ORDER BY created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT $per_page OFFSET $offset
     ";
-    
-    // Debug log the query
-    error_log("Notifications query: " . $query);
-    
+
     $stmt = $pdo->prepare($query);
-    $stmt->execute([$user_id, $per_page, $offset]);
+    $stmt->execute([$user_id]);
     $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Debug log notification count

@@ -1,6 +1,6 @@
 <?php
-$pageTitle = "James Smith's Success Story - EduCoach";
-include_once '../includes/header.php';
+$page_title = "James Smith's Success Story - EduCoach";
+include_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container my-5">
@@ -8,8 +8,8 @@ include_once '../includes/header.php';
         <div class="col-12">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="../index.php">Home</a></li>
-                    <li class="breadcrumb-item"><a href="../pages/success-stories.php">Success Stories</a></li>
+                    <li class="breadcrumb-item"><a href="../home.php">Home</a></li>
+                    <li class="breadcrumb-item"><a href="../success-stories.php">Success Stories</a></li>
                     <li class="breadcrumb-item active" aria-current="page">James Smith</li>
                 </ol>
             </nav>
@@ -59,11 +59,11 @@ include_once '../includes/header.php';
             <p>For James, the benefits extend beyond business success. "My health has improved dramatically since leaving the corporate grind. I work fewer hours but with more impact. And I've reconnected with my family in ways that weren't possible before. My daughter recently told me she wants to be a coach when she grows up - that's when I knew I'd made the right choice."</p>
             
             <div class="mt-5">
-                <a href="../pages/success-stories.php" class="btn btn-outline-primary"><i class="fas fa-arrow-left me-2"></i>Back to Success Stories</a>
+                <a href="../success-stories.php" class="btn btn-outline-primary"><i class="fas fa-arrow-left me-2"></i>Back to Success Stories</a>
                 <a href="../pages/signup.php" class="btn btn-primary ms-3">Start Your Coaching Journey<i class="fas fa-arrow-right ms-2"></i></a>
             </div>
         </div>
     </div>
 </div>
 
-<?php include_once '../includes/footer.php'; ?> 
+<?php include_once __DIR__ . '/../../includes/footer.php'; ?> 
