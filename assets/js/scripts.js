@@ -65,4 +65,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-}); 
+});
+
+// Show/hide password toggle. Any <button data-toggle-password="#selector"> flips
+// the referenced field between password and text, and swaps the eye icon.
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-toggle-password]');
+    if (!btn) return;
+    const input = document.querySelector(btn.getAttribute('data-toggle-password'));
+    if (!input) return;
+    const reveal = input.type === 'password';
+    input.type = reveal ? 'text' : 'password';
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = reveal ? 'bi bi-eye-slash' : 'bi bi-eye';
+    btn.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+});

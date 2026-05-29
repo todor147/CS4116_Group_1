@@ -14,8 +14,9 @@ define('AUTH_FUNCTIONS_INCLUDED', true);
  * @return array|false User data if authentication successful, false otherwise
  */
 function authenticateUser($pdo, $email, $password) {
-    $stmt = $pdo->prepare("SELECT * FROM Users WHERE email = ? AND is_banned = 0");
-    $stmt->execute([$email]);
+    // Accept either an email address or a username as the identifier.
+    $stmt = $pdo->prepare("SELECT * FROM Users WHERE (email = ? OR username = ?) AND is_banned = 0");
+    $stmt->execute([$email, $email]);
     $user = $stmt->fetch();
 
     if ($user && password_verify($password, $user['password_hash'])) {
