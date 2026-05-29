@@ -73,6 +73,16 @@ if (env('DB_SSL', false)) {
 
 try {
     $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], $options);
+
+    // Keep GROUP BY behaviour consistent across providers. MySQL 8 / TiDB enable
+    // ONLY_FULL_GROUP_BY by default (MariaDB does not), which rejects the app's
+    // legacy aggregate queries with error 1055. Drop it so the app behaves the
+    // same everywhere it runs. Best-effort: never let this take the site down.
+    try {
+        $pdo->exec("SET SESSION sql_mode = REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', '')");
+    } catch (PDOException $e) {
+        error_log('Could not adjust sql_mode: ' . $e->getMessage());
+    }
 } catch (PDOException $e) {
     error_log('Database connection failed: ' . $e->getMessage());
 
