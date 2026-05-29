@@ -15,9 +15,9 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Application code
 COPY . /var/www/html
 
-# Writable runtime directories
-RUN mkdir -p /var/www/html/logs /var/www/html/uploads \
-    && chown -R www-data:www-data /var/www/html/logs /var/www/html/uploads
+# Writable runtime directories (logs, generic uploads, and profile images)
+RUN mkdir -p /var/www/html/logs /var/www/html/uploads /var/www/html/assets/images/profiles \
+    && chown -R www-data:www-data /var/www/html/logs /var/www/html/uploads /var/www/html/assets/images/profiles
 
 # Sensible production PHP defaults
 RUN { \
