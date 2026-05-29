@@ -1,0 +1,53 @@
+# EduCoach — local development stack
+# Usage:  docker compose up --build
+#   App      -> http://localhost:8080
+#   Adminer  -> http://localhost:8081  (server: db, user: root, pass: root)
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      APP_ENV: development
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: cs4116_marketplace
+      DB_USER: educoach
+      DB_PASS: educoach
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Live-reload source during development
+      - ./:/var/www/html
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: cs4116_marketplace
+      MYSQL_USER: educoach
+      MYSQL_PASSWORD: educoach
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      # Auto-import on first boot (numeric prefixes enforce order)
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/initial_data.sql:/docker-entrypoint-initdb.d/02-initial_data.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  adminer:
+    image: adminer:4
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+
+volumes:
+  db_data:

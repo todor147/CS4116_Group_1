@@ -1,28 +1,28 @@
 -- Sample data for EduCoach platform
--- Insert sample users (password is 'Password123!')
+-- Insert sample users (password for ALL demo accounts is: Password123!)
 INSERT INTO Users (username, email, password_hash, user_type, bio) VALUES
-('admin', 'admin@educoach.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 'System administrator'),
-('john_teacher', 'john@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'business', 'Experienced math tutor with 10 years of teaching experience.'),
-('sara_coach', 'sara@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'business', 'Certified language instructor specializing in Spanish and French.'),
-('mike_science', 'mike@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'business', 'Physics and Chemistry expert with PhD in Physical Sciences.'),
-('emily_art', 'emily@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'business', 'Professional artist offering painting and drawing lessons.'),
-('david_code', 'david@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'business', 'Software engineer teaching programming and web development.'),
-('james_business', 'james@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'business', 'Business leadership coach with 15 years executive experience.'),
-('maria_lang', 'maria@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'business', 'Spanish language professor with cultural immersion methods.'),
-('robert_music', 'robert@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'business', 'Professional musician offering guitar, piano, and music theory.'),
-('lisa_fitness', 'lisa@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'business', 'Certified fitness trainer specializing in yoga and pilates.'),
-('natalie_history', 'natalie@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'business', 'History professor specializing in world history and cultural studies.'),
-('kevin_test', 'kevin@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'business', 'Test preparation expert focusing on SAT, GMAT, and standardized exams.'),
-('student1', 'student1@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'regular', 'University student looking for math help.'),
-('student2', 'student2@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'regular', 'High school student interested in science and arts.'),
-('learner3', 'learner3@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'regular', 'Professional looking to improve language skills.'),
-('student4', 'student4@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'regular', 'Beginner programmer seeking coding tutorials.'),
-('alex_learner', 'alex@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'regular', 'Business professional learning Spanish for career advancement.'),
-('sophia_student', 'sophia@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'regular', 'Music enthusiast learning piano and guitar.'),
-('tom_fitness', 'tom@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'regular', 'Fitness enthusiast looking for yoga and pilates instruction.'),
-('emma_artist', 'emma@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'regular', 'Aspiring artist seeking to improve painting and drawing skills.'),
-('ryan_business', 'ryan@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'regular', 'Entrepreneur looking for business coaching and leadership skills.'),
-('jasmine_science', 'jasmine@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'regular', 'PhD student seeking advanced help with physics research.');
+('admin', 'admin@educoach.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'admin', 'System administrator'),
+('john_teacher', 'john@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'business', 'Experienced math tutor with 10 years of teaching experience.'),
+('sara_coach', 'sara@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'business', 'Certified language instructor specializing in Spanish and French.'),
+('mike_science', 'mike@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'business', 'Physics and Chemistry expert with PhD in Physical Sciences.'),
+('emily_art', 'emily@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'business', 'Professional artist offering painting and drawing lessons.'),
+('david_code', 'david@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'business', 'Software engineer teaching programming and web development.'),
+('james_business', 'james@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'business', 'Business leadership coach with 15 years executive experience.'),
+('maria_lang', 'maria@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'business', 'Spanish language professor with cultural immersion methods.'),
+('robert_music', 'robert@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'business', 'Professional musician offering guitar, piano, and music theory.'),
+('lisa_fitness', 'lisa@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'business', 'Certified fitness trainer specializing in yoga and pilates.'),
+('natalie_history', 'natalie@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'business', 'History professor specializing in world history and cultural studies.'),
+('kevin_test', 'kevin@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'business', 'Test preparation expert focusing on SAT, GMAT, and standardized exams.'),
+('student1', 'student1@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'regular', 'University student looking for math help.'),
+('student2', 'student2@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'regular', 'High school student interested in science and arts.'),
+('learner3', 'learner3@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'regular', 'Professional looking to improve language skills.'),
+('student4', 'student4@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'regular', 'Beginner programmer seeking coding tutorials.'),
+('alex_learner', 'alex@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'regular', 'Business professional learning Spanish for career advancement.'),
+('sophia_student', 'sophia@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'regular', 'Music enthusiast learning piano and guitar.'),
+('tom_fitness', 'tom@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'regular', 'Fitness enthusiast looking for yoga and pilates instruction.'),
+('emma_artist', 'emma@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'regular', 'Aspiring artist seeking to improve painting and drawing skills.'),
+('ryan_business', 'ryan@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'regular', 'Entrepreneur looking for business coaching and leadership skills.'),
+('jasmine_science', 'jasmine@example.com', '$2y$10$yMbC8T7iX36aesqJM5oBsOWQdaXL68OMKhUdi5rJfPbIkefKH0AFW', 'regular', 'PhD student seeking advanced help with physics research.');
 
 -- Insert sample privacy settings for users
 INSERT INTO UserPrivacySettings (user_id, allow_insight_requests, share_session_history, share_coach_ratings, public_profile) VALUES

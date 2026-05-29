@@ -1,0 +1,34 @@
+# Render Blueprint — deploys EduCoach as a free Docker web service.
+# In Render: New → Blueprint → pick this repo. Then fill in the DB_* secrets.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: educoach
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_TIMEZONE
+        value: Europe/Dublin
+      # --- Database (TiDB Cloud Serverless defaults shown) ---
+      - key: DB_HOST          # e.g. gateway01.<region>.prod.aws.tidbcloud.com
+        sync: false           # set in the Render dashboard
+      - key: DB_PORT
+        value: "4000"         # TiDB = 4000; most other MySQL hosts = 3306
+      - key: DB_NAME
+        value: cs4116_marketplace
+      - key: DB_USER          # e.g. xxxxxxxx.root
+        sync: false
+      - key: DB_PASS
+        sync: false
+      - key: DB_CHARSET
+        value: utf8mb4
+      # --- TLS (required by TiDB / Aiven / most managed MySQL) ---
+      - key: DB_SSL
+        value: "true"
+      - key: DB_SSL_CA
+        value: /etc/ssl/certs/ca-certificates.crt

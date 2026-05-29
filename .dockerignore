@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.log
+logs/*.log
+php_errors.log
+node_modules
+.vscode
+.idea
+.cursor
+README.md
+Final_Report.md
+DEPLOYMENT.md
+docker-compose.yml

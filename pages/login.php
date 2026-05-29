@@ -1,131 +1,117 @@
 <?php
-session_start();
-
-// Redirect if already logged in
-if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
-    // Check if user is admin and redirect accordingly
-    if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true) {
-        header('Location: admin.php');
-    } else {
-        header('Location: dashboard.php');
-    }
-    exit;
-}
-
+// db_connection boots config (env, secure session, helpers) and gives us $pdo.
 require __DIR__ . '/../includes/db_connection.php';
 require __DIR__ . '/../includes/auth_functions.php';
 require __DIR__ . '/../includes/validation_functions.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
+// Already signed in? Send them on their way.
+if (!empty($_SESSION['logged_in'])) {
+    header('Location: ' . (($_SESSION['user_type'] ?? '') === 'admin' ? 'admin.php' : 'dashboard.php'));
+    exit;
+}
 
-    if (!isValidEmail($email)) {
-        $error = 'Please enter a valid email address';
+$error = '';
+$email = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf($_POST['csrf_token'] ?? null)) {
+        $error = 'Your session expired. Please try again.';
     } else {
-        // Check for admin login
-        if ($email === 'admin@educoach.com' && $password === 'Passw0rd') {
-            $_SESSION['logged_in'] = true;
-            $_SESSION['user_id'] = 1; // Admin user ID in the database
-            $_SESSION['is_admin'] = true;
-            $_SESSION['username'] = 'admin';
-            $_SESSION['email'] = 'admin@educoach.com';
-            $_SESSION['user_type'] = 'admin';
-            header('Location: admin.php');
-            exit;
-        }
-        
-        // Regular user login
-        $user = authenticateUser($pdo, $email, $password);
-        
-        if ($user) {
-            // Set session variables
-            $_SESSION['logged_in'] = true;
-            $_SESSION['user_id'] = $user['user_id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['email'] = $user['email'];
-            $_SESSION['user_type'] = $user['user_type'];
-            $_SESSION['profile_image'] = $user['profile_image'];
-            
-            // Check if the user is a coach
-            try {
-                $stmt = $pdo->prepare("SELECT coach_id FROM Coaches WHERE user_id = ?");
-                $stmt->execute([$user['user_id']]);
-                $coach = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($coach) {
-                    $_SESSION['coach_id'] = $coach['coach_id'];
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        if (!isValidEmail($email) || $password === '') {
+            $error = 'Please enter a valid email and password.';
+        } else {
+            $user = authenticateUser($pdo, $email, $password);
+
+            if ($user) {
+                startUserSession($user);
+
+                // Cache coach_id for coaches.
+                try {
+                    $stmt = $pdo->prepare("SELECT coach_id FROM Coaches WHERE user_id = ?");
+                    $stmt->execute([$user['user_id']]);
+                    if ($coach = $stmt->fetch()) {
+                        $_SESSION['coach_id'] = $coach['coach_id'];
+                    }
+                } catch (PDOException $e) {
+                    error_log('Coach lookup failed on login: ' . $e->getMessage());
                 }
-            } catch (PDOException $e) {
-                // Silent fail - not critical
-            }
-            
-            // Check if there is a redirect URL
-            if (isset($_GET['redirect']) && !empty($_GET['redirect'])) {
-                $redirect = urldecode($_GET['redirect']);
-                // Validate the URL to prevent open redirect vulnerabilities
-                // Only allow internal redirects
-                if (strpos($redirect, '/') === 0 || strpos($redirect, 'pages/') === 0) {
+
+                // Safe internal redirect only.
+                $redirect = $_GET['redirect'] ?? '';
+                if ($redirect !== '' && preg_match('#^[a-zA-Z0-9_\-./?=&]+$#', $redirect) && !str_contains($redirect, '//')) {
                     header('Location: ' . $redirect);
                     exit;
                 }
+                header('Location: ' . (($user['user_type'] ?? '') === 'admin' ? 'admin.php' : 'dashboard.php'));
+                exit;
             }
-            
-            // Default redirect
-            header('Location: dashboard.php');
-            exit;
-        } else {
-            $error = "Invalid email or password";
+            $error = 'Invalid email or password.';
         }
     }
 }
 
+$page_title = 'Log in — EduCoach';
 include __DIR__ . '/../includes/header.php';
 ?>
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-5">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="mb-0">Login to EduCoach</h2>
-                </div>
-                <div class="card-body">
-                    <?php if (isset($error)): ?>
-                        <div class="alert alert-danger"><?= $error ?></div>
-                    <?php endif; ?>
-                    <form action="login.php" method="post">
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                                <input type="email" class="form-control" id="email" name="email" required>
+<section class="section-sm">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-5">
+                <div class="card border-0 shadow-lg">
+                    <div class="card-body p-4 p-sm-5">
+                        <div class="text-center mb-4">
+                            <span class="brand-mark mx-auto mb-3" style="width:48px;height:48px;font-size:1.4rem">
+                                <i class="bi bi-mortarboard-fill"></i>
+                            </span>
+                            <h1 class="h3 mb-1">Welcome back</h1>
+                            <p class="text-muted mb-0">Log in to continue learning with EduCoach.</p>
+                        </div>
+
+                        <?php if ($error): ?>
+                            <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+                                <i class="bi bi-exclamation-circle"></i><span><?= e($error) ?></span>
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                                <input type="password" class="form-control" id="password" name="password" required>
+                        <?php endif; ?>
+
+                        <form action="login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" method="post" novalidate>
+                            <?= csrf_field() ?>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                    <input type="email" class="form-control" id="email" name="email"
+                                           value="<?= e($email) ?>" autocomplete="email" required>
+                                </div>
                             </div>
-                            <small class="form-text text-muted">
-                                <a href="forgot-password.php" class="text-decoration-none">Forgot password?</a>
-                            </small>
-                        </div>
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="rememberMe">
-                            <label class="form-check-label" for="rememberMe">Remember me</label>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
-                        <hr>
-                        <div class="text-center">
-                            <p class="mt-3">Don't have an account? <a href="register.php" class="text-decoration-none">Register here</a></p>
-                        </div>
-                    </form>
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between">
+                                    <label for="password" class="form-label">Password</label>
+                                    <a href="forgot-password.php" class="small">Forgot password?</a>
+                                </div>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                    <input type="password" class="form-control" id="password" name="password"
+                                           autocomplete="current-password" required>
+                                    <button class="btn btn-outline-secondary" type="button" data-toggle-password="#password" aria-label="Show password">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 mt-3">Log in</button>
+                        </form>
+
+                        <p class="text-center text-muted mt-4 mb-0">
+                            New to EduCoach? <a href="register.php" class="fw-semibold">Create an account</a>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+</section>
 
-<?php include __DIR__ . '/../includes/footer.php'; ?> 
+<?php include __DIR__ . '/../includes/footer.php'; ?>

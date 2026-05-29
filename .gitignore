@@ -35,16 +35,14 @@ composer.lock
 /cache/
 /tmp/
 
-# Ignore log files
-/logs/
+# Ignore log files (but keep the directory)
+/logs/*
+!/logs/.gitkeep
 *.log
 
-// # Ignore database files
-// *.sql
-// *.sqlite
-
-# Ignore uploaded files
-/uploads/
+# Ignore uploaded files (but keep the directory)
+/uploads/*
+!/uploads/.gitkeep
 
 # Ignore XAMPP/WAMP files
 /xampp/
