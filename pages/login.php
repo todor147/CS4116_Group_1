@@ -20,8 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        if (!isValidEmail($email) || $password === '') {
-            $error = 'Please enter a valid email and password.';
+        if ($email === '' || $password === '') {
+            $error = 'Please enter your email or username and your password.';
         } else {
             $user = authenticateUser($pdo, $email, $password);
 
@@ -80,11 +80,11 @@ include __DIR__ . '/../includes/header.php';
                         <form action="login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" method="post" novalidate>
                             <?= csrf_field() ?>
                             <div class="mb-3">
-                                <label for="email" class="form-label">Email address</label>
+                                <label for="email" class="form-label">Email or username</label>
                                 <div class="input-group">
-                                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                                    <input type="email" class="form-control" id="email" name="email"
-                                           value="<?= e($email) ?>" autocomplete="email" required>
+                                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                    <input type="text" class="form-control" id="email" name="email"
+                                           value="<?= e($email) ?>" autocomplete="username" required>
                                 </div>
                             </div>
                             <div class="mb-2">
